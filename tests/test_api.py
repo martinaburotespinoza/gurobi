@@ -49,3 +49,14 @@ def test_calibration_gated_round_is_not_silently_fallback_solved():
     response = TestClient(app).post("/solve", json=_payload(round_number=5))
     assert response.status_code == 501
     assert "calibration-gated" in response.json()["detail"]
+
+
+def test_invalid_drink_mix_is_rejected_at_api_boundary():
+    from fastapi.testclient import TestClient
+    from api.app import app
+
+    payload = _payload()
+    payload["scenario"]["p_hot"] = 0.8
+    payload["scenario"]["p_cold"] = 0.3
+    response = TestClient(app).post("/solve", json=payload)
+    assert response.status_code == 422

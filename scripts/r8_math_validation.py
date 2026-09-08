@@ -1,17 +1,9 @@
 """R8 advanced mathematical certification for the Gurobean core model.
 
-R8 is intentionally a certification harness: it does not alter the production
-model. It independently checks identities and structural properties that must
-hold for the exact Normal-newsvendor formulation used by R1-R4.
-
-Checks:
-- analytic gradient against central finite differences;
-- analytic Hessian against finite differences of the gradient;
-- concavity of each single-product objective;
-- first-order optimality of the economic closed-form solution;
-- boundary/resource clipping behavior;
-- invariance of objective decomposition between one- and two-product rounds;
-- deterministic repeatability over a seeded stress set.
+R8 is a certification harness only. It does not modify the production model.
+It checks differential identities, concavity, economic stationarity,
+resource-bound behavior, objective decomposition and deterministic stress
+coverage for the exact Normal-newsvendor formulation used by R1-R4.
 """
 from __future__ import annotations
 
@@ -60,12 +52,11 @@ def _scenario(rng: random.Random) -> Scenario:
     rev_c = rng.uniform(0.5, 8.0)
     cost_h = rng.uniform(0.0, rev_h * 0.9)
     cost_c = rng.uniform(0.0, rev_c * 0.9)
-    salvage_h = rng.uniform(0.0, cost_h + 0.25 * rev_h)
-    salvage_c = rng.uniform(0.0, cost_c + 0.25 * rev_c)
+    # Keep salvage <= cost so the tested economic problem has a finite
+    # interior optimum whenever the contribution margin is positive.
+    salvage_h = rng.uniform(0.0, max(cost_h, 1e-12))
+    salvage_c = rng.uniform(0.0, max(cost_c, 1e-12))
 
-    # Shared capacities are deliberately generous or binding with equal
-    # probability.  Per-cup coefficients are positive to exercise both
-    # resource constraints without inventing additional game rules.
     beans_hot = rng.uniform(0.05, 2.0)
     beans_cold = rng.uniform(0.05, 2.0)
     water_hot = rng.uniform(0.1, 3.0)
@@ -102,9 +93,10 @@ def _check_single_product(lam: float, revenue: float, cost: float, salvage: floa
         return expected_newsvendor_profit(x, lam, revenue, cost, salvage)
 
     analytic_g = expected_newsvendor_gradient(q, lam, revenue, cost, salvage)
-    numeric_g = _central_difference(f, q, FD_STEP * max(1.0, abs(q)))
     h = FD_STEP * max(1.0, abs(q))
-    analytic_h = -(revenue - salvage) * math.exp(-0.5 * ((q - lam) / math.sqrt(lam)) ** 2) / math.sqrt(2.0 * math.pi * lam)
+    numeric_g = _central_difference(f, q, h)
+    z = (q - lam) / math.sqrt(lam)
+    analytic_h = -(revenue - salvage) * math.exp(-0.5 * z * z) / math.sqrt(2.0 * math.pi * lam)
     numeric_h = _central_difference(
         lambda x: expected_newsvendor_gradient(x, lam, revenue, cost, salvage), q, h
     )
@@ -122,13 +114,14 @@ def _check_closed_form(lam: float, revenue: float, cost: float, salvage: float) 
     return {
         "q": float(q),
         "gradient_abs": abs(float(g)),
-        "stationary": abs(float(g)) <= STATIONARITY_TOL,
+        "stationary": bool(np.isfinite(q) and abs(float(g)) <= STATIONARITY_TOL),
     }
 
 
 def _check_round_decomposition(sc: Scenario) -> dict:
-    qh = min(_round_bounds(sc, False, False)[0], sc.lambda_hot + math.sqrt(sc.lambda_hot))
-    qc = min(_round_bounds(sc, True, True)[1], sc.lambda_cold + math.sqrt(sc.lambda_cold))
+    hot_hi, cold_hi = _round_bounds(sc, True, True)
+    qh = min(hot_hi, sc.lambda_hot + math.sqrt(sc.lambda_hot))
+    qc = min(cold_hi, sc.lambda_cold + math.sqrt(sc.lambda_cold))
     total = _round_objective(sc, True, True, qh, qc)
     hot = expected_newsvendor_profit(qh, sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot)
     cold = expected_newsvendor_profit(qc, sc.lambda_cold, sc.revenue_cold, sc.cost_cold, sc.salvage_cold)
@@ -145,10 +138,19 @@ def _check_boundary(sc: Scenario) -> dict:
         return {"skipped": True}
     result = solve_round1_closed_form(sc)
     q = float(result["Q_hot"])
+    economic = _economic_unconstrained_q(sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot)
     feasible = _feasible(q, 0.0, sc)
     within = -1e-10 <= q <= hot_cap + 1e-10
-    clipped = bool(q >= hot_cap - 1e-8) if np.isfinite(_economic_unconstrained_q(sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot)) else True
-    return {"skipped": False, "q": q, "cap": float(hot_cap), "feasible": feasible, "within_cap": within, "boundary_logic": clipped}
+    expected = hot_cap if not np.isfinite(economic) else min(hot_cap, economic)
+    clipping_error = abs(q - max(0.0, float(expected)))
+    return {
+        "skipped": False,
+        "q": q,
+        "cap": float(hot_cap),
+        "feasible": feasible,
+        "within_cap": within,
+        "clipping_abs_error": clipping_error,
+    }
 
 
 def audit_case(index: int, sc: Scenario) -> CaseResult:
@@ -185,7 +187,7 @@ def audit_case(index: int, sc: Scenario) -> CaseResult:
             and decomp["decomposition_abs_error"] <= 1e-10
             and decomp["finite"]
             and decomp["feasible"]
-            and (boundary.get("skipped") or (boundary["feasible"] and boundary["within_cap"]))
+            and (boundary.get("skipped") or (boundary["feasible"] and boundary["within_cap"] and boundary["clipping_abs_error"] <= 1e-10))
         )
         return CaseResult(index, checks, passed)
     except Exception as exc:
@@ -199,7 +201,7 @@ def main() -> int:
     max_grad = max((r.checks.get("max_gradient_abs_error", 0.0) for r in results), default=0.0)
     max_hess = max((r.checks.get("max_hessian_abs_error", 0.0) for r in results), default=0.0)
     out = {
-        "schema": "gurobean.r8.math_validation.v1",
+        "schema": "gurobean.r8.math_validation.v2",
         "seed": SEED,
         "cases": CASES,
         "failures": len(failures),

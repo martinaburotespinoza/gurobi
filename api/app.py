@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
 
@@ -26,6 +26,12 @@ class ScenarioInput(BaseModel):
     beans_cold: float = Field(ge=0)
     water_hot: float = Field(ge=0)
     water_cold: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_drink_mix(self) -> "ScenarioInput":
+        if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
+            raise ValueError("p_hot + p_cold must equal 1")
+        return self
 
 
 class SolveRequest(BaseModel):

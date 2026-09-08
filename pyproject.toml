@@ -1,6 +1,6 @@
 [project]
 name = "gurobean-engine"
-version = "0.2.6"
+version = "0.3.0"
 description = "Auditable mathematical and simulation engine for Gurobean Coffee"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.26", "scipy>=1.11"]

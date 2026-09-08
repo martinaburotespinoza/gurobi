@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+"""Solver parity and numerical regression checks for the R1-R4 engine."""
+
+from dataclasses import dataclass, asdict
+from typing import Iterable
+
+import numpy as np
+
+from .model import Scenario, solve_round_scipy, solve_gurobi_round
+
+
+@dataclass(frozen=True)
+class ParityCase:
+    round_number: int
+    scenario: Scenario
+    label: str = ""
+
+
+@dataclass(frozen=True)
+class ParityResult:
+    label: str
+    round_number: int
+    passed: bool
+    scipy_objective: float
+    gurobi_objective: float | None
+    objective_abs_error: float | None
+    q_hot_abs_error: float | None
+    q_cold_abs_error: float | None
+    status: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def default_parity_cases(seed: int = 20260907, count: int = 24) -> list[ParityCase]:
+    """Generate deterministic, feasible stress cases covering R1-R4."""
+    if count < 4:
+        raise ValueError("count must be >= 4")
+    rng = np.random.default_rng(seed)
+    cases: list[ParityCase] = []
+    for i in range(count):
+        round_number = (i % 4) + 1
+        lam = float(rng.uniform(1.0, 80.0))
+        p_hot = 1.0 if round_number == 1 else float(rng.uniform(0.35, 0.85))
+        p_cold = 0.0 if round_number == 1 else 1.0 - p_hot
+        revenue_hot = float(rng.uniform(1.0, 6.0))
+        revenue_cold = float(rng.uniform(1.0, 6.0))
+        cost_hot = 0.0 if round_number < 3 else float(rng.uniform(0.1, 2.0))
+        cost_cold = 0.0 if round_number < 3 else float(rng.uniform(0.1, 2.0))
+        # Shared resources are intentionally tight enough to exercise coupling.
+        beans = float(rng.uniform(35.0, 110.0))
+        water = float(rng.uniform(40.0, 140.0))
+        cases.append(
+            ParityCase(
+                round_number,
+                Scenario(
+                    lambda_total=lam,
+                    p_hot=p_hot,
+                    p_cold=p_cold,
+                    revenue_hot=revenue_hot,
+                    revenue_cold=revenue_cold,
+                    cost_hot=cost_hot,
+                    cost_cold=cost_cold,
+                    beans_available=beans,
+                    water_available=water,
+                    beans_hot=float(rng.uniform(0.5, 1.5)),
+                    beans_cold=float(rng.uniform(0.5, 1.5)) if round_number >= 2 else 0.0,
+                    water_hot=float(rng.uniform(0.5, 2.0)),
+                    water_cold=float(rng.uniform(0.5, 2.0)) if round_number >= 2 else 0.0,
+                ),
+                label=f"random_{i:03d}_r{round_number}",
+            )
+        )
+    return cases
+
+
+def run_parity_suite(
+    cases: Iterable[ParityCase] | None = None,
+    *,
+    pwl_points: int = 2001,
+    objective_tolerance: float = 2e-3,
+    quantity_tolerance: float = 2e-2,
+) -> list[ParityResult]:
+    """Compare the analytic/SciPy reference against the real Gurobi adapter.
+
+    If gurobipy is unavailable, every case is returned as ``status=skipped``;
+    no fake solver result is synthesized.
+    """
+    if pwl_points < 101:
+        raise ValueError("pwl_points must be >= 101")
+    if objective_tolerance <= 0 or quantity_tolerance <= 0:
+        raise ValueError("tolerances must be > 0")
+    cases = list(cases or default_parity_cases())
+    results: list[ParityResult] = []
+    for case in cases:
+        ref = solve_round_scipy(case.scenario, case.round_number)
+        try:
+            got = solve_gurobi_round(case.scenario, case.round_number, pwl_points=pwl_points)
+        except RuntimeError as exc:
+            if "gurobipy is not installed" in str(exc):
+                results.append(ParityResult(case.label, case.round_number, False, ref["objective"], None, None, None, None, "skipped_gurobi_unavailable"))
+                continue
+            raise
+        qh_err = abs(float(ref["Q_hot"]) - float(got["Q_hot"]))
+        qc_err = abs(float(ref["Q_cold"]) - float(got["Q_cold"]))
+        obj_err = abs(float(ref["objective"]) - float(got["objective"]))
+        passed = obj_err <= objective_tolerance and qh_err <= quantity_tolerance and qc_err <= quantity_tolerance
+        results.append(ParityResult(case.label, case.round_number, passed, float(ref["objective"]), float(got["objective"]), obj_err, qh_err, qc_err, "passed" if passed else "parity_mismatch"))
+    return results

@@ -1,0 +1,5 @@
+round_number,markup,arrival_rate,queue,wait_minutes,stay_probability,order_size,service_rate,barista_cost_per_hour,scenario_id,replicate,source
+5,,,,,,,,,,,
+6,,, ,,,, ,,,
+7,,,,,,, ,,,
+8,,,,,,, ,,,

@@ -1,0 +1,41 @@
+{
+  "monte_carlo": [
+    {
+      "analytical_profit": 23.005288597992838,
+      "cost": 0.0,
+      "lam": 25.0,
+      "passed": true,
+      "q": 25.0,
+      "revenue": 1.0,
+      "salvage": 0.0,
+      "sampled_profit": 23.004784669626673,
+      "standard_error": 0.00923088679330079,
+      "z_score": 0.05459154439314001
+    },
+    {
+      "analytical_profit": 90.40700694874232,
+      "cost": 1.5,
+      "lam": 40.0,
+      "passed": true,
+      "q": 42.0,
+      "revenue": 4.0,
+      "salvage": 0.0,
+      "sampled_profit": 90.48381171076844,
+      "standard_error": 0.054895291391270175,
+      "z_score": 1.3991138416350282
+    }
+  ],
+  "pytest_returncode": 0,
+  "pytest_stdout": "..................................                                       [100%]\n34 passed in 1.56s",
+  "simulation": {
+    "simulation": {
+      "arrivals": 1104,
+      "hours": 120,
+      "lost": 0,
+      "mean_queue": 1.664688467932294,
+      "mean_wait": 13.615945321866434,
+      "served": 1103,
+      "utilization": 0.7150453612814487
+    }
+  }
+}

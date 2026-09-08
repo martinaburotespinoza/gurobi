@@ -1,9 +1,12 @@
 """R9 end-to-end certification for the R1-R4 Gurobean optimization pipeline.
 
-R9 exercises the complete solve path, validates feasibility and exact
-objective consistency, checks deterministic replay and cross-checks the real
-Gurobi/PWL backend. The continuous reference remains the exact analytic
-objective; SLSQP is only a numerical optimizer used to locate its maximum.
+The continuous reference is solved independently from the Gurobi/PWL adapter.
+For R1/R3 the reference is the analytic one-dimensional Newsvendor optimum.
+For R2/R4 the exact objective is separable and concave over a 2-D polygon;
+R9 therefore enumerates the polygon vertices, optimizes every edge by a
+monotone ternary search, and checks the unconstrained stationary point. This
+avoids using SLSQP as a mathematical certifier and removes its scale-sensitive
+failure modes.
 """
 from __future__ import annotations
 
@@ -81,9 +84,7 @@ def _scenario(rng: random.Random, edge: int) -> Scenario:
 
 
 def _objective(sc: Scenario, round_number: int, qh: float, qc: float) -> float:
-    return _round_objective(
-        sc, round_number in (2, 4), round_number in (3, 4), qh, qc
-    )
+    return _round_objective(sc, round_number in (2, 4), round_number in (3, 4), qh, qc)
 
 
 def _stationary_q(sc: Scenario, round_number: int, hot: bool) -> float:
@@ -111,82 +112,106 @@ def _stationary_q(sc: Scenario, round_number: int, hot: bool) -> float:
     ))
 
 
-def _robust_reference(sc: Scenario, round_number: int) -> dict:
-    """Independent numerical reference with analytic stationary starts.
+def _ternary_max(sc: Scenario, round_number: int, a: np.ndarray, b: np.ndarray) -> tuple[float, np.ndarray]:
+    """Deterministic maximization of a concave objective on a line segment."""
+    lo, hi = 0.0, 1.0
+    for _ in range(100):
+        m1 = (2.0 * lo + hi) / 3.0
+        m2 = (lo + 2.0 * hi) / 3.0
+        x1 = a + m1 * (b - a)
+        x2 = a + m2 * (b - a)
+        f1 = _objective(sc, round_number, float(x1[0]), float(x1[1]))
+        f2 = _objective(sc, round_number, float(x2[0]), float(x2[1]))
+        if f1 < f2:
+            lo = m1
+        else:
+            hi = m2
+    candidates = (lo, (lo + hi) / 2.0, hi, 0.0, 1.0)
+    best_t = max(candidates, key=lambda t: _objective(sc, round_number, *(a + t * (b - a))))
+    x = a + best_t * (b - a)
+    return float(_objective(sc, round_number, float(x[0]), float(x[1]))), x
 
-    The engine's SciPy solver is tried first. If SLSQP rejects a start or
-    reports no successful candidate, R9 retries with the exact stationary
-    points and several deterministic interior starts. This addresses the
-    known failure mode where very small demand/resource scales make a generic
-    start numerically awkward without changing the mathematical objective.
+
+def _polygon_vertices(sc: Scenario, round_number: int) -> list[np.ndarray]:
+    """Enumerate all feasible vertices of the 2-D R2/R4 feasible polygon."""
+    hot_hi, cold_hi = _round_bounds(sc, round_number in (2, 4), round_number in (3, 4))
+    # A*x + B*y <= C. The first four constraints are the box.
+    lines = [
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (1.0, 0.0, hot_hi),
+        (0.0, 1.0, cold_hi),
+        (sc.beans_hot, sc.beans_cold, sc.beans_available),
+        (sc.water_hot, sc.water_cold, sc.water_available),
+    ]
+    vertices: list[np.ndarray] = []
+    scale = max(1.0, hot_hi, cold_hi, abs(sc.beans_available), abs(sc.water_available))
+    tol = 1e-9 * scale
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            a1, b1, c1 = lines[i]
+            a2, b2, c2 = lines[j]
+            det = a1 * b2 - a2 * b1
+            if abs(det) <= 1e-14 * max(1.0, abs(a1), abs(b1), abs(a2), abs(b2)):
+                continue
+            qh = (c1 * b2 - c2 * b1) / det
+            qc = (a1 * c2 - a2 * c1) / det
+            if qh < -tol or qc < -tol or qh > hot_hi + tol or qc > cold_hi + tol:
+                continue
+            if sc.beans_hot * qh + sc.beans_cold * qc > sc.beans_available + tol:
+                continue
+            if sc.water_hot * qh + sc.water_cold * qc > sc.water_available + tol:
+                continue
+            x = np.array([max(0.0, min(hot_hi, qh)), max(0.0, min(cold_hi, qc))], dtype=float)
+            if not any(np.max(np.abs(x - y)) <= 1e-9 * max(1.0, np.max(np.abs(x)), np.max(np.abs(y))) for y in vertices):
+                vertices.append(x)
+    if not vertices:
+        raise RuntimeError("R9 reference polygon has no feasible vertex")
+    return vertices
+
+
+def _concave_polygon_reference(sc: Scenario, round_number: int) -> dict:
+    """Global reference for the separable concave R2/R4 problem.
+
+    A concave function on a compact polygon has either an interior stationary
+    maximizer or a maximizer on one of the polygon edges. All vertices are
+    enumerated exactly from the linear constraints; each edge is then solved
+    by deterministic ternary search. No general-purpose nonlinear solver is
+    used as the certifier.
     """
-    try:
-        return solve_round(round_number, sc, backend="scipy")
-    except Exception:
-        pass
+    vertices = _polygon_vertices(sc, round_number)
+    hot_hi, cold_hi = _round_bounds(sc, True, round_number == 4)
+    stationary = np.array([
+        min(hot_hi, _stationary_q(sc, round_number, True)),
+        min(cold_hi, _stationary_q(sc, round_number, False)),
+    ], dtype=float)
+    candidates: list[tuple[float, np.ndarray]] = []
+    if _feasible(float(stationary[0]), float(stationary[1]), sc):
+        candidates.append((_objective(sc, round_number, float(stationary[0]), float(stationary[1])), stationary))
+    for v in vertices:
+        candidates.append((_objective(sc, round_number, float(v[0]), float(v[1])), v))
+    if len(vertices) >= 2:
+        center = np.mean(np.stack(vertices), axis=0)
+        ordered = sorted(vertices, key=lambda x: math.atan2(float(x[1] - center[1]), float(x[0] - center[0])))
+        for i, a in enumerate(ordered):
+            b = ordered[(i + 1) % len(ordered)]
+            if np.max(np.abs(a - b)) <= 1e-12:
+                continue
+            candidates.append(_ternary_max(sc, round_number, a, b))
+    value, x = max(candidates, key=lambda item: item[0])
+    qh, qc = float(x[0]), float(x[1])
+    return {"Q_hot": qh, "Q_cold": qc, "objective": float(value), "method": "r9_exact_concave_polygon"}
 
+
+def _robust_reference(sc: Scenario, round_number: int) -> dict:
+    """Independent reference for R1-R4; never uses Gurobi."""
     if round_number in (1, 3):
-        raise RuntimeError(f"reference optimizer failed for R{round_number}")
-
-    from scipy.optimize import minimize
-
-    include_cold = round_number in (2, 4)
-    include_cost = round_number in (3, 4)
-    hot_hi, cold_hi = _round_bounds(sc, include_cold, include_cost)
-
-    def objective(x: np.ndarray) -> float:
-        return -_objective(sc, round_number, float(x[0]), float(x[1]))
-
-    def gradient(x: np.ndarray) -> np.ndarray:
-        cost_h = sc.cost_hot if include_cost else 0.0
-        cost_c = sc.cost_cold if include_cost else 0.0
-        return -np.asarray([
-            expected_newsvendor_gradient(float(x[0]), sc.lambda_hot, sc.revenue_hot, cost_h, sc.salvage_hot),
-            expected_newsvendor_gradient(float(x[1]), sc.lambda_cold, sc.revenue_cold, cost_c, sc.salvage_cold),
-        ], dtype=float)
-
-    starts = [
-        np.zeros(2),
-        np.array([_stationary_q(sc, round_number, True), _stationary_q(sc, round_number, False)]),
-    ]
-    for frac in (0.1, 0.25, 0.5, 0.75, 0.9):
-        starts.append(np.array([frac * hot_hi, frac * cold_hi], dtype=float))
-    starts += [np.array([hot_hi, 0.0]), np.array([0.0, cold_hi])]
-
-    def feasible_start(x: np.ndarray) -> np.ndarray:
-        x = np.clip(x, 0.0, [hot_hi, cold_hi]).astype(float)
-        if _feasible(x[0], x[1], sc):
-            return x
-        for _ in range(80):
-            x *= 0.5
-            if _feasible(x[0], x[1], sc):
-                return x
-        return np.zeros(2, dtype=float)
-
-    constraints = [
-        {"type": "ineq", "fun": lambda x: sc.beans_available - sc.beans_hot * x[0] - sc.beans_cold * x[1],
-         "jac": lambda x: np.asarray([-sc.beans_hot, -sc.beans_cold], dtype=float)},
-        {"type": "ineq", "fun": lambda x: sc.water_available - sc.water_hot * x[0] - sc.water_cold * x[1],
-         "jac": lambda x: np.asarray([-sc.water_hot, -sc.water_cold], dtype=float)},
-    ]
-
-    candidates = []
-    for start in starts:
-        x0 = feasible_start(start)
-        result = minimize(
-            objective, x0, jac=gradient, method="SLSQP",
-            bounds=[(0.0, hot_hi), (0.0, cold_hi)],
-            constraints=constraints,
-            options={"ftol": 1e-12, "maxiter": 3000},
-        )
-        x = np.asarray(result.x, dtype=float)
-        if np.all(np.isfinite(x)) and result.success and _feasible(x[0], x[1], sc):
-            candidates.append((float(result.fun), x))
-    if not candidates:
-        raise RuntimeError(f"robust reference failed for R{round_number}")
-    _, x = min(candidates, key=lambda item: item[0])
-    qh, qc = map(float, x)
-    return {"Q_hot": qh, "Q_cold": qc, "objective": _objective(sc, round_number, qh, qc), "method": "r9_robust_scipy_reference"}
+        include_cost = round_number == 3
+        hot_hi, _ = _round_bounds(sc, False, include_cost)
+        q = min(hot_hi, _stationary_q(sc, round_number, True))
+        q = max(0.0, float(q))
+        return {"Q_hot": q, "Q_cold": 0.0, "objective": _objective(sc, round_number, q, 0.0), "method": "r9_exact_1d"}
+    return _concave_polygon_reference(sc, round_number)
 
 
 def certify_case(index: int, round_number: int, sc: Scenario, require_gurobi: bool) -> CaseResult:
@@ -219,10 +244,7 @@ def certify_case(index: int, round_number: int, sc: Scenario, require_gurobi: bo
         gobj_exact = _objective(sc, round_number, gqh, gqc)
         q_error = max(abs(gqh - qh), abs(gqc - qc))
         gobj_error = abs(gobj_exact - exact_obj)
-        gurobi_ok = bool(
-            _feasible(gqh, gqc, sc) and math.isfinite(gobj_exact)
-            and gobj_error <= PWL_OBJ_TOL
-        )
+        gurobi_ok = bool(_feasible(gqh, gqc, sc) and math.isfinite(gobj_exact) and gobj_error <= PWL_OBJ_TOL)
         return CaseResult(index, round_number, reference_ok, True, gurobi_ok, qh, qc, float(ref["objective"]), objective_error, q_error, feasible, deterministic)
     except Exception as exc:
         return CaseResult(index, round_number, False, False, False, math.nan, math.nan, math.nan, math.inf, math.inf, False, False, repr(exc))
@@ -249,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     status = "PASS" if not reference_failures and not gurobi_failures and gate_ok else "FAIL"
 
     out = {
-        "schema": "gurobean.r9.end_to_end.v3",
+        "schema": "gurobean.r9.end_to_end.v4",
         "seed": SEED, "cases": CASES, "rounds": list(ROUNDS), "total_cases": len(results),
         "reference_failures": len(reference_failures), "gurobi_cases_checked": len(gurobi_checked),
         "gurobi_failures": len(gurobi_failures), "max_reference_objective_error": max_obj_error,

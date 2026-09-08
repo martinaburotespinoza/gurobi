@@ -1,7 +1,6 @@
 # R9 release gate
 
-R9 is the final engineering gate for the mathematically closed R1-R4 core.
-It is intentionally separate from the empirical calibration of R5-R8.
+R9 is the final engineering gate for the mathematically closed R1-R4 core. It is intentionally separate from the empirical calibration of R5-R8.
 
 ## Required conditions
 
@@ -9,14 +8,16 @@ A release certification is PASS only when all of the following hold:
 
 1. `gurobipy` imports successfully.
 2. A real Gurobi environment starts successfully, proving that the local license gate is available.
-3. All 100 seeded scenarios are evaluated for rounds R1-R4 (400 checks).
-4. The independent analytical reference is feasible and deterministic.
-5. Every Gurobi solution is `OPTIMAL`.
-6. Every returned decision satisfies non-negativity and both shared-resource constraints.
-7. The exact analytical objective evaluated at the Gurobi decision is within the configured regret tolerance of the independent reference optimum.
-8. Gurobi's reported PWL objective is within the same release tolerance of the exact analytical objective at its returned decision.
-9. If a base PWL mesh misses the release tolerance, deterministic refinement is attempted at 5001, 10001 and 20001 points.
-10. A JSON artifact records the complete certification run, including failures and maxima.
+3. The repository working tree is clean and the exact Git HEAD is recorded in the artifact.
+4. All 100 seeded scenarios are evaluated for rounds R1-R4 (400 checks).
+5. The release scenarios obey the official complete hot/cold demand partition and use zero salvage because unused coffee is waste in the game.
+6. The independent analytical reference is feasible and deterministic.
+7. Every Gurobi solution is `OPTIMAL`.
+8. Every returned decision satisfies non-negativity and both shared-resource constraints.
+9. The exact analytical objective evaluated at the Gurobi decision is within the configured regret tolerance of the independent reference optimum.
+10. Gurobi's reported PWL objective is within the same release tolerance of the exact analytical objective at its returned decision.
+11. If a base PWL mesh misses the release tolerance, deterministic refinement is attempted at 5001, 10001 and 20001 points.
+12. A JSON artifact records the complete certification run, including the exact commit, failures and maxima.
 
 ## Numerical release policy
 
@@ -26,7 +27,7 @@ The PWL mesh is only a numerical encoding of the exact analytical Normal-newsven
 
 ## Important mathematical boundary
 
-The PWL model is a solver-validation encoding of the exact Normal-newsvendor objective. It is not itself claimed to be an exact native representation of the Normal CDF/PDF. The independent analytical implementation remains the reference truth.
+The PWL model is a solver-validation encoding of the exact Normal-newsboy objective. It is not itself claimed to be an exact native representation of the Normal CDF/PDF. The independent analytical implementation remains the reference truth.
 
 ## R5-R8 boundary
 
@@ -36,9 +37,10 @@ The strict provenance gate is implemented in `gurobean/evidence_gate.py` and acc
 
 ## Release command
 
-Run from a licensed local Gurobi environment:
+Run from a licensed local Gurobi environment on the exact clean commit being released:
 
 ```bash
+python scripts/check_gurobi.py
 python scripts/r9_release.py
 ```
 
@@ -49,4 +51,4 @@ GUROBI_GATE: CHECKED
 R9 STATUS: PASS
 ```
 
-and create `r9_release_certification.json`.
+and create `r9_release_certification.json` containing the exact Git commit.

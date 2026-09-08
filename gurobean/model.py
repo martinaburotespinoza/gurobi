@@ -311,6 +311,11 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
     m.Params.FeasibilityTol = 1e-9
     m.Params.OptimalityTol = 1e-9
     m.Params.NumericFocus = 2
+    # The model is a profit maximization. setPWLObj() installs the PWL
+    # objective function but does not change Gurobi's default MINIMIZE sense.
+    # Without this explicit sense Gurobi selects the minimum-profit point
+    # (typically Q=0), producing catastrophic regret despite a correct PWL.
+    m.ModelSense = gp.GRB.MAXIMIZE
     qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
     qc = m.addVar(lb=0.0, ub=(cold_hi if include_cold else 0.0), name="Q_cold")
     if np.isfinite(sc.beans_available):

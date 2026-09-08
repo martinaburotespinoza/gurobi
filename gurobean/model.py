@@ -83,10 +83,6 @@ class RoundConfig:
         )
 
 
-def phi(z: float) -> float:
-    return exp(-0.5 * z * z) / SQRT2PI
-
-
 def expected_newsvendor_profit(Q: float, lam: float, revenue: float, cost: float, salvage: float = 0.0) -> float:
     if Q < 0:
         return -np.inf
@@ -357,6 +353,8 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
     m.Params.FeasibilityTol = 1e-9
     m.Params.OptimalityTol = 1e-9
     m.Params.NumericFocus = 2
+    m.Params.MIPGap = 0.0
+    m.Params.MIPGapAbs = 1e-9
     m.ModelSense = gp.GRB.MAXIMIZE
     qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
     qc = m.addVar(lb=0.0, ub=cold_hi if include_cold else 0.0, name="Q_cold")

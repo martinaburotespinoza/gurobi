@@ -26,12 +26,14 @@ __all__ = [
     "simulate_queue",
     "CalibrationDataset", "Observation", "FitResult", "PromotionDecision",
     "best_fit", "calibration_gate", "validate_observations",
+    "strict_calibration_gate",
 ]
 
 from .calibration import (
     CalibrationDataset, Observation, FitResult, PromotionDecision, best_fit,
     calibration_gate, validate_observations,
 )
+from .evidence_gate import strict_calibration_gate
 
 from .experiments import ExperimentSpec, ExperimentRun, ExperimentReport, run_experiment, kfold_split, cross_validated_rmse
 from .validation import MonteCarloCheck, monte_carlo_newsvendor_check

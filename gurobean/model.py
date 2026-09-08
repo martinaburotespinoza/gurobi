@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import erf, exp, sqrt, pi
-from statistics import NormalDist
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 
 SQRT2PI = sqrt(2 * pi)
-_STD_NORMAL = NormalDist()
 
 
 def phi(z: float) -> float:
@@ -146,8 +144,14 @@ def _economic_unconstrained_q(lam: float, revenue: float, cost: float, salvage: 
         return 0.0
     if critical_fractile >= 1:
         return np.inf
-    z = _STD_NORMAL.inv_cdf(critical_fractile)
-    return max(0.0, lam + sqrt(lam) * z)
+    lo, hi = -10.0, 10.0
+    for _ in range(90):
+        mid = 0.5 * (lo + hi)
+        if Phi(mid) < critical_fractile:
+            lo = mid
+        else:
+            hi = mid
+    return max(0.0, lam + sqrt(lam) * 0.5 * (lo + hi))
 
 
 def solve_round1_closed_form(sc: Scenario) -> dict:
@@ -254,7 +258,129 @@ def solve_round_scipy(sc: Scenario, round_number: int) -> dict:
         if result.success and _feasible(float(result.x[0]), float(result.x[1]), sc):
             candidates.append(result)
     if not candidates:
-        raise RuntimeError("SLSQP failed to find a feasible R2/R4 solution")
-    best = min(candidates, key=lambda r: r.fun)
-    return {"Q_hot": float(best.x[0]), "Q_cold": float(best.x[1]),
-            "objective": -float(best.fun), "method": "scipy_reference"}
+        raise RuntimeError(f"SLSQP failed for R{round_number}: no feasible successful start")
+    result = min(candidates, key=lambda r: float(r.fun))
+    qh, qc = map(float, result.x)
+    return {"Q_hot": qh, "Q_cold": qc,
+            "objective": _round_objective(sc, include_cold, include_cost, qh, qc),
+            "method": "scipy_reference"}
+
+
+def _resource_vertices(sc: Scenario, include_cold: bool, hot_hi: float, cold_hi: float) -> list[tuple[float, float]]:
+    vertices: set[tuple[float, float]] = {(0.0, 0.0), (float(hot_hi), 0.0), (0.0, float(cold_hi)), (float(hot_hi), float(cold_hi))}
+    constraints: list[tuple[float, float, float]] = []
+    if np.isfinite(sc.beans_available):
+        constraints.append((float(sc.beans_hot), float(sc.beans_cold if include_cold else 0.0), float(sc.beans_available)))
+    if np.isfinite(sc.water_available):
+        constraints.append((float(sc.water_hot), float(sc.water_cold if include_cold else 0.0), float(sc.water_available)))
+    for a, b, rhs in constraints:
+        if abs(a) > 1e-15:
+            for qc in (0.0, float(cold_hi)):
+                qh = (rhs - b*qc) / a
+                if -1e-9 <= qh <= hot_hi + 1e-9 and _feasible(qh, qc, sc):
+                    vertices.add((min(max(float(qh), 0.0), float(hot_hi)), float(qc)))
+        if include_cold and abs(b) > 1e-15:
+            for qh in (0.0, float(hot_hi)):
+                qc = (rhs - a*qh) / b
+                if -1e-9 <= qc <= cold_hi + 1e-9 and _feasible(qh, qc, sc):
+                    vertices.add((float(qh), min(max(float(qc), 0.0), float(cold_hi))))
+    if len(constraints) >= 2:
+        a1, b1, r1 = constraints[0]
+        a2, b2, r2 = constraints[1]
+        det = a1*b2 - a2*b1
+        if abs(det) > 1e-15:
+            qh = (r1*b2 - r2*b1) / det
+            qc = (a1*r2 - a2*r1) / det
+            if -1e-9 <= qh <= hot_hi + 1e-9 and -1e-9 <= qc <= cold_hi + 1e-9 and _feasible(qh, qc, sc):
+                vertices.add((min(max(float(qh), 0.0), float(hot_hi)), min(max(float(qc), 0.0), float(cold_hi))))
+    return sorted(vertices)
+
+
+def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
+    if round_number not in (1, 2, 3, 4):
+        raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
+    try:
+        import gurobipy as gp
+    except ImportError as exc:
+        raise RuntimeError("gurobipy is not installed") from exc
+    include_cold = round_number in (2, 4)
+    include_cost = round_number in (3, 4)
+    hot_hi, cold_hi = _round_bounds(sc, include_cold, include_cost)
+    m = gp.Model(f"gurobean_r{round_number}")
+    m.Params.OutputFlag = 0
+    qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
+    qc = m.addVar(lb=0.0, ub=(cold_hi if include_cold else 0.0), name="Q_cold")
+    if np.isfinite(sc.beans_available):
+        m.addConstr(sc.beans_hot*qh + sc.beans_cold*qc <= sc.beans_available, name="beans")
+    if np.isfinite(sc.water_available):
+        m.addConstr(sc.water_hot*qh + sc.water_cold*qc <= sc.water_available, name="water")
+    resource_vertices = _resource_vertices(sc, include_cold, hot_hi, cold_hi)
+    def add_profit_pwl(q, hi, lam, revenue, cost, salvage, name, critical_points=None):
+        hi = float(hi)
+        if hi <= 1e-12:
+            value = expected_newsvendor_profit(0.0, lam, revenue, cost, salvage)
+            return m.addVar(lb=value, ub=value, name=name)
+        points = max(2, int(pwl_points))
+        if hi < 1e-5:
+            t = m.addVar(lb=0.0, ub=1.0, name=f"{name}_normalized")
+            m.addConstr(q == hi*t, name=f"{name}_scale")
+            xs = np.linspace(0.0, 1.0, points)
+            ys = [expected_newsvendor_profit(float(hi*x), lam, revenue, cost, salvage) for x in xs]
+            y_lo, y_hi = min(ys), max(ys)
+            y = m.addVar(lb=y_lo-max(1.0, abs(y_lo)*1e-9), ub=y_hi+max(1.0, abs(y_hi)*1e-9), name=name)
+            m.addGenConstrPWL(t, y, xs.tolist(), ys, name=f"{name}_pwl")
+            return y
+        base_xs = np.linspace(0.0, hi, points)
+        extra = [float(x) for x in (critical_points or []) if -1e-12 <= float(x) <= hi+1e-12]
+        xs = np.asarray(sorted({round(float(x), 15) for x in np.concatenate((base_xs, np.asarray(extra, dtype=float))) if -1e-12 <= float(x) <= hi+1e-12}), dtype=float)
+        xs = np.clip(xs, 0.0, hi)
+        if len(xs) >= 2:
+            scale = max(1.0, abs(float(hi)))
+            min_dx = max(1.1e-6, 1e-8*scale)
+            filtered = [float(xs[0])]
+            for x in xs[1:]:
+                x = float(x)
+                if x-filtered[-1] >= min_dx:
+                    filtered.append(x)
+            if filtered[-1] < float(hi):
+                if float(hi)-filtered[-1] >= min_dx:
+                    filtered.append(float(hi))
+                elif len(filtered) >= 2:
+                    filtered[-1] = float(hi)
+            xs = np.asarray(filtered, dtype=float)
+        if len(xs) < 2 or np.max(np.diff(xs)) <= 0.0:
+            xs = np.asarray([0.0, hi], dtype=float)
+        ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
+        y_lo, y_hi = min(ys), max(ys)
+        y = m.addVar(lb=y_lo-max(1.0, abs(y_lo)*1e-9), ub=y_hi+max(1.0, abs(y_hi)*1e-9), name=name)
+        m.addGenConstrPWL(q, y, xs.tolist(), ys, name=f"{name}_pwl")
+        return y
+    yh = add_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, "profit_hot", [v[0] for v in resource_vertices])
+    yc = m.addVar(lb=0.0, ub=0.0, name="profit_cold_zero")
+    if include_cold:
+        yc = add_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, "profit_cold", [v[1] for v in resource_vertices])
+    m.setObjective(yh+yc, gp.GRB.MAXIMIZE)
+    m.optimize()
+    if m.Status != gp.GRB.OPTIMAL:
+        raise RuntimeError(f"Gurobi did not return OPTIMAL; status={m.Status}")
+    return {"Q_hot": float(qh.X), "Q_cold": float(qc.X) if include_cold else 0.0,
+            "objective": float(m.ObjVal), "method": "gurobi_pwl_validation",
+            "status": int(m.Status), "pwl_points": int(pwl_points)}
+
+
+def solve_round(round_number: int, sc: Scenario, backend: str = "scipy") -> dict:
+    if round_number not in range(1, 9):
+        raise ValueError("round must be 1..8")
+    if round_number <= 4:
+        if backend == "scipy":
+            return solve_round_scipy(sc, round_number)
+        if backend == "gurobi":
+            return solve_gurobi_round(sc, round_number)
+        if backend == "closed_form" and round_number == 1:
+            return solve_round1_closed_form(sc)
+        raise ValueError("backend must be scipy, gurobi, or closed_form (R1 only)")
+    raise NotImplementedError(f"R{round_number} requires calibrated game dynamics; no invented equation is used.")
+
+
+def solve_gurobi_r1(sc: Scenario):
+    return solve_gurobi_round(sc, 1)

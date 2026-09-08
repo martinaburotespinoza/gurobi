@@ -8,6 +8,7 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 - **R5-R8:** evidence-gated calibration framework plus runtime evaluators for promoted fits; no game rule is invented.
 - **R8 mathematical certification:** independent differential, concavity, stationarity, resource-boundary and objective-decomposition checks over a seeded stress set; this harness does not modify the production model.
 - **R9 end-to-end certification:** 100 seeded scenarios across R1-R4 (400 reference executions), deterministic replay, feasibility, exact objective consistency, edge cases and optional real-Gurobi/PWL parity.
+- **R9 release certification:** strict licensed-Gurobi gate with adaptive PWL refinement and a complete JSON audit artifact.
 - **Simulation:** reproducible M/M/1 baseline plus a configurable continuous-time coffee-shop simulator with inventory, balking, multi-cup orders and service-rate cost; later-round rules remain calibration-driven.
 - **Experiments:** seeded batches, aggregation and cross-validation.
 - **Validation:** analytical-vs-Monte-Carlo checks and a single production validation command.
@@ -27,13 +28,13 @@ python scripts/r9_end_to_end.py
 
 `check_gurobi.py` deliberately returns a non-zero status when `gurobipy` or a valid Gurobi license is unavailable; the engine never fakes a solver result.
 
-**R9 release gate:** in the licensed local Gurobi environment run:
+**Strict R9 release gate:** in the licensed local Gurobi environment run:
 
 ```bash
-python scripts/r9_end_to_end.py --require-gurobi
+python scripts/r9_release.py
 ```
 
-The generated artifact must report `R9 STATUS: PASS` and `GUROBI_GATE: CHECKED`. CI certifies the reference path but cannot substitute for the licensed Gurobi gate.
+A release is accepted only when the command reports `GUROBI_GATE: CHECKED` and `R9 STATUS: PASS`. It also creates `r9_release_certification.json` containing the seeded cases, round results, objective regrets, solver-objective errors, refinement events and failures. See `docs/R9_RELEASE_GATE.md` for the normative gate definition.
 
 ## Run the API
 

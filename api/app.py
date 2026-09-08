@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import isfinite
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
@@ -28,7 +29,15 @@ class ScenarioInput(BaseModel):
     water_cold: float = Field(ge=0)
 
     @model_validator(mode="after")
-    def validate_drink_mix(self) -> "ScenarioInput":
+    def validate_scenario_contract(self) -> "ScenarioInput":
+        numeric_fields = (
+            "lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold",
+            "cost_hot", "cost_cold", "salvage_hot", "salvage_cold",
+            "beans_available", "water_available", "beans_hot", "beans_cold",
+            "water_hot", "water_cold",
+        )
+        if any(not isfinite(getattr(self, name)) for name in numeric_fields):
+            raise ValueError("scenario numeric values must be finite")
         if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
             raise ValueError("p_hot + p_cold must equal 1")
         return self

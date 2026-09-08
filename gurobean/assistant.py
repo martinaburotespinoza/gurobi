@@ -14,9 +14,9 @@ available for the most important evaluation questions.
 import json
 import os
 from pathlib import Path
-from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
@@ -44,17 +44,17 @@ def evidence_context() -> dict[str, Any]:
         "evaluation": {
             "notebook": "Model mathematical evolution Round by Round.",
             "product": "Dynamic program configurable at runtime without rewriting code.",
-            "presentation": "Explain decision variables, objective, constraints and Monte Carlo conceptually; demo live; validate against real values after prediction."
+            "presentation": "Explain decision variables, objective, constraints and Monte Carlo conceptually; demo live; validate against real values after prediction.",
         },
         "rounds": {
-            "R1": "hot coffee",
-            "R2": "hot + cold coffee and shared resources",
-            "R3": "brewing cost",
-            "R4": "hot + cold + costs + resources",
-            "R5": "markup / arrival response (calibration-gated)",
-            "R6": "balking / congestion (calibration-gated)",
-            "R7": "multi-cup order size (calibration-gated)",
-            "R8": "service rate / barista cost (calibration-gated)",
+            "R1": "hot coffee — analytical/Gurobi certified",
+            "R2": "hot + cold coffee and shared resources — analytical/Gurobi certified",
+            "R3": "brewing cost — analytical/Gurobi certified",
+            "R4": "hot + cold + costs + resources — analytical/Gurobi certified",
+            "R5": "markup / arrival response — operational Monte Carlo; formal game parity evidence-gated",
+            "R6": "balking / congestion — operational Monte Carlo; formal game parity evidence-gated",
+            "R7": "multi-cup order size — operational Monte Carlo; formal game parity evidence-gated",
+            "R8": "service rate / barista cost — operational Monte Carlo; formal game parity evidence-gated",
         },
         "certification_manifest": manifest,
         "validation_report": validation,
@@ -75,11 +75,11 @@ def _deterministic_answer(question: str, context: dict[str, Any]) -> str:
     if any(k in q for k in ("r3", "round 3", "tercera ronda")):
         return "R3 incorpora el costo de preparación. Ese costo modifica directamente el beneficio esperado y, por tanto, la cantidad económicamente conveniente de producir."
     if any(k in q for k in ("r4", "round 4", "cuarta ronda")):
-        return "R4 combina café caliente y frío, costos de preparación y restricciones de recursos compartidos. Es la última ronda actualmente respaldada por referencia analítica directa."
+        return "R4 combina café caliente y frío, costos de preparación y restricciones de recursos compartidos. Es la última ronda respaldada por referencia analítica y certificación Gurobi en el estado actual."
     if "r5" in q or "r6" in q or "r7" in q or "r8" in q:
-        return "R5–R8 están implementadas como capas de calibración, pero permanecen protegidas por un gate de evidencia. El sistema no inventa reglas del juego que no estén respaldadas por datos observados."
+        return "R5–R8 ya son ejecutables mediante simulación Monte Carlo con parámetros de respuesta explícitos. El resultado es operacional, pero la paridad formal contra el juego real sigue protegida por el gate de evidencia: no se declara certificación sin observaciones reales."
     if any(k in q for k in ("gurobi", "solver", "óptim", "optima", "optimal")):
-        return "La ruta Gurobi de R1–R4 usa el backend PWL explícito con GenConstrPWL y una auditoría posterior contra la referencia analítica. El resultado debe comprobar factibilidad y consistencia del objetivo antes de considerarse válido."
+        return "La ruta Gurobi de R1–R4 usa el backend PWL explícito con GenConstrPWL y una auditoría posterior contra la referencia analítica. R5–R8 usan simulación porque el sistema es estocástico y no lineal; su certificación contra el juego requiere evidencia real."
     if any(k in q for k in ("evaluación", "evaluacion", "gerente", "presentación", "presentacion")):
         return "Para la evaluación, el producto debe poder configurarse en vivo sin reescribir código, aceptar nuevos valores de entrada, resolver con agilidad y mostrar la decisión óptima junto con indicadores. La presentación debe explicar la lógica matemática, no el código."
     return "Puedo responder con la evidencia disponible del sistema. Para preguntas sobre una ejecución concreta, entrega los datos/resultados de esa ejecución o consulta el endpoint de resultados para que la respuesta quede anclada a hechos verificables."

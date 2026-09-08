@@ -19,6 +19,16 @@ from . import model as _model
 PWL_POINTS_DEFAULT = 20001
 
 
+def _economic_anchor(lam: float, revenue: float, cost: float, salvage: float, hi: float) -> float:
+    """Return the exact unconstrained Newsvendor stationary point when valid."""
+    q = _model._economic_unconstrained_q(
+        float(lam), float(revenue), float(cost), float(salvage)
+    )
+    if not math.isfinite(q):
+        return float(hi)
+    return min(max(float(q), 0.0), float(hi))
+
+
 def solve_gurobi_round(sc, round_number: int, pwl_points: int = PWL_POINTS_DEFAULT) -> dict:
     if round_number not in (1, 2, 3, 4):
         raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
@@ -61,8 +71,16 @@ def solve_gurobi_round(sc, round_number: int, pwl_points: int = PWL_POINTS_DEFAU
         hi = float(hi)
         if hi <= 1e-12:
             return None
+
+        # The exact economic stationary point is an optimizer whenever the
+        # corresponding resource constraints are inactive.  Anchoring it in
+        # the PWL mesh prevents the solver from being forced to a neighboring
+        # breakpoint merely because the global mesh spacing is finite.
+        anchors = list(critical_points or [])
+        anchors.append(_economic_anchor(lam, revenue, cost, salvage, hi))
+
         xs = _model._adaptive_pwl_points(
-            hi, lam, revenue, salvage, critical_points, points
+            hi, lam, revenue, salvage, anchors, points
         )
         ys = [
             _model.expected_newsvendor_profit(

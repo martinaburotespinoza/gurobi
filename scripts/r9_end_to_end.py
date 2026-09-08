@@ -319,3 +319,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"R9 STATUS: {status}")
     print("ARTIFACT: r9_end_to_end.json")
     return 0 if status == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

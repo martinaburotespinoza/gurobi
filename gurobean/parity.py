@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 """Solver parity and numerical regression checks for the R1-R4 engine.
 
@@ -191,16 +191,9 @@ def run_parity_suite(
 
         scipy_objective = float(ref["objective"])
         gurobi_objective = float(got["objective"])
-
         obj_err = abs(scipy_objective - gurobi_objective)
-
-        qh_err = abs(
-            float(ref["Q_hot"]) - float(got["Q_hot"])
-        )
-
-        qc_err = abs(
-            float(ref["Q_cold"]) - float(got["Q_cold"])
-        )
+        qh_err = abs(float(ref["Q_hot"]) - float(got["Q_hot"]))
+        qc_err = abs(float(ref["Q_cold"]) - float(got["Q_cold"]))
 
         feasible = _scenario_feasible(
             case.scenario,
@@ -210,23 +203,17 @@ def run_parity_suite(
         )
 
         objective_ok = obj_err <= objective_tolerance
-        quantities_ok = (
-            qh_err <= quantity_tolerance
-            and qc_err <= quantity_tolerance
-        )
+        quantities_ok = qh_err <= quantity_tolerance and qc_err <= quantity_tolerance
 
         if not feasible:
             status = "gurobi_infeasible"
             passed = False
-
         elif not objective_ok:
             status = "objective_mismatch"
             passed = False
-
         elif quantities_ok:
             status = "passed_exact"
             passed = True
-
         else:
             status = "passed_alternative_optimum"
             passed = True

@@ -8,13 +8,17 @@ Source: https://www.gurobi.com/academics/gurobean/game-guide
 
 ## R1–R4 certified mathematical core
 
-For drink type `i`, with arrival rate `lambda_i`, decision `Q_i`, unit revenue `r_i`, unit brewing cost `c_i`, and salvage `s_i`:
+For drink type `i`, with arrival rate `lambda_i`, decision `Q_i`, unit revenue `r_i`, and unit brewing cost `c_i`:
 
 - `D_i ~ Normal(lambda_i, lambda_i)` for the optimization approximation.
 - `z_i = (Q_i - lambda_i) / sqrt(lambda_i)` when `lambda_i > 0`.
 - `E[min(Q_i,D_i)] = lambda_i Phi(z_i) - sqrt(lambda_i) phi(z_i) + Q_i (1-Phi(z_i))`.
 - `E[(Q_i-D_i)^+] = (Q_i-lambda_i) Phi(z_i) + sqrt(lambda_i) phi(z_i)`.
-- `profit_i = r_i E[min(Q_i,D_i)] - c_i Q_i + s_i E[(Q_i-D_i)^+]`.
+- `profit_i = r_i E[min(Q_i,D_i)] - c_i Q_i`.
+
+The official game treats unused brewed coffee as waste, so the production R1-R4 certification uses zero salvage value. The model code retains a zero-default salvage field only as a generic mathematical extension; positive salvage is not part of the Gurobean certification scenarios.
+
+The hot/cold probabilities form a complete partition: `p_hot + p_cold = 1`, and therefore `lambda_hot + lambda_cold = lambda_total`.
 
 R1 uses only hot coffee and no brewing cost. R2 adds cold coffee. R3 adds hot brewing cost. R4 adds cold brewing cost. These round boundaries match the official guide.
 

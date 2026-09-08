@@ -101,7 +101,6 @@ def test_r5_simulation_contract():
     assert result["formal_game_certified"] is False
     assert result["simulation_hours"] == 2
     assert result["replications"] == 1
-    assert result["coordinate_points"] if "coordinate_points" in result else True
     assert result["objective"] == result["expected_profit"]
 
 

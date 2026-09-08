@@ -2,15 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "functions": {
-    "api/index.py": { "maxDuration": 300 },
-    "api/ui.py": { "maxDuration": 30 }
+    "api/index.py": { "maxDuration": 300 }
   },
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/favicon.ico", "dest": "/web/favicon.svg" },
     { "src": "/favicon.svg", "dest": "/web/favicon.svg" },
     { "src": "/capture", "dest": "/web/capture.html" },
-    { "src": "/app", "dest": "/api/ui.py" },
+    { "src": "/capture/", "dest": "/web/capture.html" },
+    { "src": "/app", "dest": "/web/index.html" },
+    { "src": "/app/", "dest": "/web/index.html" },
     { "src": "/", "dest": "/index.html" }
   ],
   "headers": [

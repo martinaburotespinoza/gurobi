@@ -120,7 +120,7 @@ def audit_source_contract() -> None:
         for path in root.rglob("*.py"):
             if path == Path(__file__).resolve():
                 continue
-            text = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8-sig")
             tree = ast.parse(text, filename=str(path))
             compile(tree, str(path), "exec")
             if any(token in text for token in forbidden):
@@ -130,9 +130,9 @@ def audit_source_contract() -> None:
     if hits:
         raise AssertionError(f"unexpected unfinished markers: {hits}")
 
-    evidence = (ROOT / "gurobean" / "evidence_gate.py").read_text(encoding="utf-8")
+    evidence = (ROOT / "gurobean" / "evidence_gate.py").read_text(encoding="utf-8-sig")
     assert "synthetic" in evidence.lower()
-    model = (ROOT / "gurobean" / "model.py").read_text(encoding="utf-8")
+    model = (ROOT / "gurobean" / "model.py").read_text(encoding="utf-8-sig")
     assert "NotImplementedError" in model
 
 

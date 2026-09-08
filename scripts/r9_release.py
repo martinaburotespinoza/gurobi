@@ -33,7 +33,9 @@ import gurobean.model as model
 import scripts.r9_end_to_end as r9
 
 REF_TOL = r9.REFERENCE_OBJ_TOL
-OBJ_TOL = r9.PWL_OBJ_TOL
+# Do not inherit a loose diagnostic tolerance from the exploratory harness.
+# Release certification is deliberately stricter than reference-only CI.
+OBJ_TOL = min(float(r9.PWL_OBJ_TOL), 1e-4)
 BASE_POINTS = r9.R9_PWL_POINTS
 REFINE_POINTS = (5001, 10001, 20001)
 ARTIFACT = ROOT / "r9_release_certification.json"
@@ -177,6 +179,8 @@ def main() -> int:
         "gurobi_version": version,
         "base_pwl_points": BASE_POINTS,
         "refinement_points": list(REFINE_POINTS),
+        "release_objective_tolerance": OBJ_TOL,
+        "reference_objective_tolerance": REF_TOL,
         "refined_solves": refined,
         "failures": len(failures),
         "max_exact_objective_regret": max_regret,
@@ -196,6 +200,7 @@ def main() -> int:
     print(f"GUROBI_VERSION: {version}")
     print(f"CASES: {r9.CASES} x ROUNDS: {len(r9.ROUNDS)} = {len(records)}")
     print(f"BASE_PWL_POINTS: {BASE_POINTS}")
+    print(f"RELEASE_OBJECTIVE_TOLERANCE: {OBJ_TOL:.12g}")
     print(f"REFINED_SOLVES: {refined}")
     print(f"FAILURES: {len(failures)}")
     print(f"MAX_EXACT_OBJECTIVE_REGRET: {max_regret:.12g}")

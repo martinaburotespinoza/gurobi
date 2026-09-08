@@ -1,0 +1,27 @@
+{
+  "schema": "gurobean.certification-manifest.v1",
+  "release_line": "r9-1000-certification",
+  "status": "RELEASE_BLOCKED_PENDING_MANDATORY_GATES",
+  "gates": {
+    "r1_r4_reference": "PASSABLE",
+    "r1_r4_reference_ci": "AUTOMATED",
+    "r1_r4_real_gurobi": "PENDING_LOCAL_LICENSED_RUN",
+    "r9_release": "PENDING_LOCAL_LICENSED_RUN",
+    "r5_markup": "CALIBRATION_GATED",
+    "r6_balking": "CALIBRATION_GATED",
+    "r7_multi_cup": "CALIBRATION_GATED",
+    "r8_service_rate": "CALIBRATION_GATED"
+  },
+  "anti_false_positive": {
+    "missing_gurobi_is_pass": false,
+    "synthetic_r5_r8_can_promote": false,
+    "dirty_release_tree_can_certify": false,
+    "pwl_only_can_certify": false
+  },
+  "required_final_outputs": [
+    "GUROBI_GATE: CHECKED",
+    "R9 STATUS: PASS",
+    "r9_release_certification.json with exact Git commit"
+  ],
+  "normative_source": "https://www.gurobi.com/academics/gurobean/game-guide"
+}

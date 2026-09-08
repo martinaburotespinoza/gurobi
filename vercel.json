@@ -11,7 +11,7 @@
     { "src": "/favicon.svg", "dest": "/web/favicon.svg" },
     { "src": "/capture", "dest": "/web/capture.html" },
     { "src": "/app", "dest": "/api/ui.py" },
-    { "src": "/", "dest": "/api/ui.py" }
+    { "src": "/", "dest": "/index.html" }
   ],
   "headers": [
     {

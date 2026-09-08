@@ -1,25 +1,78 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Gurobean Engine v2_6</title>
-  <style>body{font-family:system-ui,sans-serif;background:#f7f4ed;color:#173b68;display:grid;place-items:center;min-height:100vh;margin:0}.card{max-width:720px;margin:24px;padding:32px;background:white;border:1px solid #dfe6ed;border-radius:24px;box-shadow:0 18px 50px #2a415b18}h1{margin:0 0 8px}p{color:#718198;line-height:1.5}.status{padding:12px;border-radius:12px;background:#f4f7f9;margin:20px 0}.ok{color:#24765a}.bad{color:#a43d45}a,button{display:inline-block;border:0;border-radius:12px;padding:12px 16px;background:#173b68;color:white;text-decoration:none;font-weight:800;margin:4px;cursor:pointer}.secondary{background:#edf5fa;color:#38526e}pre{white-space:pre-wrap;word-break:break-word}</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Gurobean Engine v2_6 — optimización, simulación y evaluación">
+<meta name="robots" content="noindex">
+<title>Gurobean Engine v2_6</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#24344d;background:#f7f4ed}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#fbfaf6,#eef5fa 65%,#f7f3eb)}main{max-width:1000px;margin:auto;padding:28px 20px 48px}.card{background:#fff;border:1px solid #dfe6ed;border-radius:24px;padding:26px;box-shadow:0 18px 50px rgba(42,65,91,.09)}h1{margin:0;color:#173b68;font-size:30px}h1 span{color:#8190a1;font-size:16px}p{color:#718198;line-height:1.55}.status{margin:18px 0;padding:12px 14px;border-radius:12px;background:#f4f7f9}.ok{color:#24765a;background:#eef9f4}.bad{color:#a43d45;background:#fff1f1}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:11px;font-weight:800;color:#63758c;margin-bottom:6px}.field input{width:100%;padding:11px;border:1px solid #d7e0e7;border-radius:11px;background:#fbfcfd;font:inherit}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}.btn,a{display:inline-block;border:0;border-radius:12px;padding:12px 16px;background:#173b68;color:#fff;text-decoration:none;font-weight:900;cursor:pointer}.secondary{background:#edf5fa;color:#38526e}.result{margin-top:18px;background:#f7f9fa;border:1px solid #dfe6ed;border-radius:14px;padding:15px;min-height:100px;white-space:pre-wrap;word-break:break-word;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.hint{font-size:11px}.footer{margin-top:16px;text-align:center;font-size:10px;color:#8b99a7}@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:14px}}
+</style>
 </head>
 <body>
-<main class="card">
-<h1>☕ Gurobean Engine <small>v2_6</small></h1>
-<p>Motor de optimización matemática, simulación y evaluación reproducible.</p>
+<main>
+<section class="card">
+<h1>☕ Gurobean Engine <span>v2_6</span></h1>
+<p>Motor de optimización matemática, simulación y evaluación reproducible. Esta consola raíz es independiente de la interfaz avanzada y permite comprobar que la API funciona.</p>
 <div id="status" class="status">Conectando con el motor…</div>
-<a href="/app">Abrir consola completa</a>
+<div class="grid">
+<div class="field"><label>Demanda λ (clientes/h)</label><input id="lambda" type="number" min="0" step="0.1" value="15"></div>
+<div class="field"><label>Proporción caliente</label><input id="phot" type="number" min="0" max="1" step="0.01" value="1"></div>
+<div class="field"><label>Precio caliente</label><input id="rh" type="number" min="0" step="0.1" value="4"></div>
+<div class="field"><label>Costo caliente</label><input id="ch" type="number" min="0" step="0.1" value="1"></div>
+<div class="field"><label>Precio frío</label><input id="rc" type="number" min="0" step="0.1" value="4"></div>
+<div class="field"><label>Costo frío</label><input id="cc" type="number" min="0" step="0.1" value="1"></div>
+<div class="field"><label>Granos disponibles</label><input id="beans" type="number" min="0" step="1" value="100"></div>
+<div class="field"><label>Agua disponible</label><input id="water" type="number" min="0" step="1" value="100"></div>
+</div>
+<div class="actions">
+<button id="r1" class="btn" type="button">▶ Ejecutar R1</button>
+<button id="r8" class="btn" type="button">▶ Ejecutar R8</button>
+<a class="secondary" href="/app">Abrir consola avanzada</a>
 <a class="secondary" href="/capture">Capturar juego R1–R8</a>
-<div><button onclick="test(1)">Probar R1</button><button onclick="test(8)">Probar R8</button></div>
-<pre id="out"></pre>
-<script>
-const s=document.getElementById('status'),o=document.getElementById('out');
-async function health(){try{const r=await fetch('/api/health',{cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);s.textContent='✓ Motor conectado · API operativa';s.className='status ok';return true}catch(e){s.textContent='✗ API no disponible: '+e.message;s.className='status bad';return false}}
-async function test(round){o.textContent='Ejecutando R'+round+'…';const scenario={lambda_total:15,p_hot:1,p_cold:0,revenue_hot:4,revenue_cold:4,cost_hot:1,cost_cold:1,salvage_hot:0,salvage_cold:0,beans_available:100,water_available:100,beans_hot:1,beans_cold:1,water_hot:1,water_cold:1};const body={round_number:round,backend:round<=4?'scipy':'simulation',scenario};try{const r=await fetch('/api/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.detail||r.status);o.textContent=JSON.stringify(d,null,2)}catch(e){o.textContent='ERROR: '+e.message}}
-health();
-</script>
+</div>
+<div id="result" class="result">Listo. Ejecuta una ronda.</div>
+<p class="hint">R1–R4: referencia matemática pública. R5–R8: Monte Carlo operacional. La certificación formal de R5–R8 requiere evidencia del juego real.</p>
+</section>
+<div class="footer">Gurobean Engine · release gate interno separado de las 8 rondas del juego</div>
 </main>
-</body></html>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const status=$('status');
+const result=$('result');
+function number(id){return Number($(id).value);}
+function scenario(){
+ const p=number('phot');
+ return {lambda_total:number('lambda'),p_hot:p,p_cold:1-p,revenue_hot:number('rh'),revenue_cold:number('rc'),cost_hot:number('ch'),cost_cold:number('cc'),salvage_hot:0,salvage_cold:0,beans_available:number('beans'),water_available:number('water'),beans_hot:1,beans_cold:1,water_hot:1,water_cold:1};
+}
+async function health(){
+ try{
+  const response=await fetch('/api/health',{cache:'no-store',headers:{Accept:'application/json'}});
+  const data=await response.json();
+  if(!response.ok||data.status!=='ok')throw new Error(data.detail||('HTTP '+response.status));
+  status.textContent='✓ Motor conectado · API operativa';
+  status.className='status ok';
+ }catch(error){
+  status.textContent='✗ API no disponible · '+error.message;
+  status.className='status bad';
+ }
+}
+async function solve(round){
+ result.textContent='Ejecutando R'+round+'…';
+ try{
+  const response=await fetch('/api/solve',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({round_number:round,backend:round<=4?'scipy':'simulation',scenario:scenario()})});
+  const data=await response.json();
+  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));
+  result.textContent=JSON.stringify(data,null,2);
+ }catch(error){result.textContent='ERROR: '+error.message;}
+}
+$('r1').addEventListener('click',()=>solve(1));
+$('r8').addEventListener('click',()=>solve(8));
+health();
+})();
+</script>
+</body>
+</html>

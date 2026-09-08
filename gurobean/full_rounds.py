@@ -14,7 +14,7 @@ from the real game and the repository evidence gate.
 """
 
 from dataclasses import dataclass
-from math import exp, isfinite, log
+from math import exp, isfinite
 from typing import Callable
 
 import numpy as np
@@ -69,6 +69,8 @@ class DynamicRoundParams:
                 raise ValueError(f"{name} must be finite")
         if self.arrival_baseline_rate <= 0 or self.arrival_reference_rate <= 0:
             raise ValueError("arrival anchor rates must be > 0")
+        if self.arrival_reference_rate > self.arrival_baseline_rate:
+            raise ValueError("arrival_reference_rate must be <= arrival_baseline_rate")
         if self.reference_markup <= 0:
             raise ValueError("reference_markup must be > 0")
         if self.markup_min < 0 or self.markup_max <= self.markup_min:
@@ -129,6 +131,23 @@ def _feasible(qh: float, qc: float, sc: Scenario) -> bool:
         and sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available + 1e-9
         and sc.water_hot * qh + sc.water_cold * qc <= sc.water_available + 1e-9
     )
+
+
+def _project_feasible(qh: float, qc: float, sc: Scenario) -> tuple[float, float]:
+    """Project a nonnegative starting point into the shared-resource polygon."""
+    qh = max(0.0, float(qh))
+    qc = max(0.0, float(qc))
+    if _feasible(qh, qc, sc):
+        return qh, qc
+    scale = 1.0
+    for _ in range(80):
+        scale *= 0.5
+        candidate = (qh * scale, qc * scale)
+        if _feasible(candidate[0], candidate[1], sc):
+            return candidate
+    if _feasible(0.0, 0.0, sc):
+        return 0.0, 0.0
+    raise ValueError("supplied resource constraints make the zero-production point infeasible")
 
 
 def _order_sampler(theta: float) -> Callable[[np.random.Generator], int]:
@@ -209,7 +228,8 @@ def _coordinate_grid(value: float, low: float, high: float, points: int) -> np.n
     span = high - low
     left = max(low, value - 0.35 * span)
     right = min(high, value + 0.35 * span)
-    return np.linspace(left, right, points)
+    grid = np.linspace(left, right, points)
+    return np.unique(np.concatenate((grid, np.asarray([low, high], dtype=float))))
 
 
 def solve_dynamic_round(
@@ -228,9 +248,8 @@ def solve_dynamic_round(
     hot_hi = max(0.0, float(hot_hi))
     cold_hi = max(0.0, float(cold_hi))
 
+    qh, qc = _project_feasible(min(hot_hi, sc.lambda_hot), min(cold_hi, sc.lambda_cold), sc)
     markup = 0.5 * (params.markup_min + params.markup_max)
-    qh = min(hot_hi, sc.lambda_hot)
-    qc = min(cold_hi, sc.lambda_cold)
     service = params.service_rate_base
     best: dict | None = None
 
@@ -251,12 +270,13 @@ def solve_dynamic_round(
         else:
             dimensions.append(("service_rate", np.asarray([params.service_rate_base], dtype=float)))
 
-        current = (qh, qc, markup, service)
+        current = _project_feasible(qh, qc, sc) + (markup, service)
         for name, grid in dimensions:
             local_best = None
+            index = {"qh": 0, "qc": 1, "markup": 2, "service_rate": 3}[name]
             for candidate in grid:
                 trial = list(current)
-                trial[{"qh": 0, "qc": 1, "markup": 2, "service_rate": 3}[name]] = float(candidate)
+                trial[index] = float(candidate)
                 metrics = evaluate(tuple(trial))
                 if local_best is None or metrics["expected_profit"] > local_best[0]:
                     local_best = (metrics["expected_profit"], tuple(trial), metrics)
@@ -265,11 +285,13 @@ def solve_dynamic_round(
                 if best is None or local_best[2]["expected_profit"] > best["metrics"]["expected_profit"]:
                     best = {"values": current, "metrics": local_best[2]}
             qh, qc, markup, service = current
+            qh, qc = _project_feasible(qh, qc, sc)
 
     if best is None:
         raise RuntimeError("dynamic R5-R8 optimizer found no feasible candidate")
 
     qh, qc, markup, service = best["values"]
+    qh, qc = _project_feasible(qh, qc, sc)
     metrics = best["metrics"]
     return {
         "Q_hot": float(qh),

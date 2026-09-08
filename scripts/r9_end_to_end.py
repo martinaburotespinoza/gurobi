@@ -7,6 +7,10 @@ R9 therefore enumerates the polygon vertices, optimizes every edge by a
 monotone ternary search, and checks the unconstrained stationary point. This
 avoids using SLSQP as a mathematical certifier and removes its scale-sensitive
 failure modes.
+
+The Gurobi certification mesh is intentionally smaller than the production
+adapter default. R9 validates the solver against the exact analytic objective
+at the returned point; the mesh only supplies the numerical PWL encoding.
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ from gurobean.model import (
     _round_bounds,
     _round_objective,
     expected_newsvendor_gradient,
-    solve_round,
+    solve_gurobi_round,
 )
 
 SEED = 902026
@@ -35,6 +39,9 @@ REFERENCE_OBJ_TOL = 2e-7
 PWL_OBJ_TOL = 0.5
 PWL_Q_DIAGNOSTIC_TOL = 1.0
 FEAS_TOL = 2e-8
+# Certification-only mesh. The exact objective is independently evaluated
+# at Gurobi's returned decision, so this is not an objective-truth shortcut.
+R9_PWL_POINTS = 2001
 
 
 @dataclass(frozen=True)
@@ -170,14 +177,7 @@ def _polygon_vertices(sc: Scenario, round_number: int) -> list[np.ndarray]:
 
 
 def _concave_polygon_reference(sc: Scenario, round_number: int) -> dict:
-    """Global reference for the separable concave R2/R4 problem.
-
-    A concave function on a compact polygon has either an interior stationary
-    maximizer or a maximizer on one of the polygon edges. All vertices are
-    enumerated exactly from the linear constraints; each edge is then solved
-    by deterministic ternary search. No general-purpose nonlinear solver is
-    used as the certifier.
-    """
+    """Global reference for the separable concave R2/R4 problem."""
     vertices = _polygon_vertices(sc, round_number)
     hot_hi, cold_hi = _round_bounds(sc, True, round_number == 4)
     stationary = np.array([
@@ -214,12 +214,7 @@ def _robust_reference(sc: Scenario, round_number: int) -> dict:
 
 
 def _gurobi_feasible(qh: float, qc: float, sc: Scenario) -> bool:
-    """Validate solver output with an explicit floating-point certification tolerance.
-
-    The model feasibility checker intentionally remains strict. R9 validates a
-    numerical optimizer's returned point separately, using FEAS_TOL so tiny
-    floating-point residuals do not become false certification failures.
-    """
+    """Validate solver output with an explicit floating-point certification tolerance."""
     beans_usage = sc.beans_hot * qh + sc.beans_cold * qc
     water_usage = sc.water_hot * qh + sc.water_cold * qc
     return bool(
@@ -255,7 +250,7 @@ def certify_case(index: int, round_number: int, sc: Scenario, require_gurobi: bo
                 raise RuntimeError("R9 release gate requires gurobipy and a valid Gurobi environment")
             return CaseResult(index, round_number, reference_ok, False, True, qh, qc, float(ref["objective"]), objective_error, 0.0, feasible, deterministic)
 
-        gurobi = solve_round(round_number, sc, backend="gurobi")
+        gurobi = solve_gurobi_round(sc, round_number, pwl_points=R9_PWL_POINTS)
         gqh, gqc = float(gurobi["Q_hot"]), float(gurobi["Q_cold"])
         gobj_exact = _objective(sc, round_number, gqh, gqc)
         q_error = max(abs(gqh - qh), abs(gqc - qc))
@@ -286,17 +281,30 @@ def main(argv: list[str] | None = None) -> int:
     gate_ok = bool(gurobi_checked) if args.require_gurobi else True
     status = "PASS" if not reference_failures and not gurobi_failures and gate_ok else "FAIL"
 
-    out = {
-        "schema": "gurobean.r9.end_to_end.v4",
-        "seed": SEED, "cases": CASES, "rounds": list(ROUNDS), "total_cases": len(results),
-        "reference_failures": len(reference_failures), "gurobi_cases_checked": len(gurobi_checked),
-        "gurobi_failures": len(gurobi_failures), "max_reference_objective_error": max_obj_error,
-        "max_gurobi_q_error": max_q_error, "require_gurobi": args.require_gurobi,
-        "gurobi_gate": "CHECKED" if gurobi_checked else "NOT_AVAILABLE_IN_ENVIRONMENT",
-        "criteria": {"reference_objective_tol": REFERENCE_OBJ_TOL, "pwl_exact_objective_regret_tol": PWL_OBJ_TOL, "pwl_q_error_diagnostic_tol": PWL_Q_DIAGNOSTIC_TOL, "solver_feasibility_tol": FEAS_TOL},
-        "status": status, "results": [asdict(r) for r in results],
+    artifact = {
+        "seed": SEED,
+        "cases": CASES,
+        "rounds": list(ROUNDS),
+        "total_cases": len(results),
+        "reference_failures": len(reference_failures),
+        "gurobi_cases_checked": len(gurobi_checked),
+        "gurobi_failures": len(gurobi_failures),
+        "max_reference_objective_error": max_obj_error,
+        "max_gurobi_q_error": max_q_error,
+        "status": status,
+        "criteria": {
+            "reference_objective_tol": REFERENCE_OBJ_TOL,
+            "pwl_exact_objective_regret_tol": PWL_OBJ_TOL,
+            "pwl_q_error_diagnostic_tol": PWL_Q_DIAGNOSTIC_TOL,
+            "solver_feasibility_tol": FEAS_TOL,
+            "r9_pwl_points": R9_PWL_POINTS,
+        },
+        "require_gurobi": bool(args.require_gurobi),
+        "failures": [asdict(r) for r in results if not r.reference_ok or not r.gurobi_ok],
+        "results": [asdict(r) for r in results],
     }
-    Path("r9_end_to_end.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
+    Path("r9_end_to_end.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+
     print("=== R9 END-TO-END CERTIFICATION ===")
     print(f"CASES: {CASES} x ROUNDS: {len(ROUNDS)} = {len(results)}")
     print(f"REFERENCE_FAILURES: {len(reference_failures)}")
@@ -304,13 +312,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"GUROBI_FAILURES: {len(gurobi_failures)}")
     print(f"MAX_REFERENCE_OBJECTIVE_ERROR: {max_obj_error:.12g}")
     print(f"MAX_GUROBI_Q_ERROR: {max_q_error:.12g} (diagnostic; not a pass/fail criterion)")
-    print(f"GUROBI_EXACT_OBJECTIVE_REGRET_TOL: {PWL_OBJ_TOL:.12g}")
-    print(f"GUROBI_SOLVER_FEASIBILITY_TOL: {FEAS_TOL:.12g}")
-    print(f"GUROBI_GATE: {out['gurobi_gate']}")
+    print(f"GUROBI_EXACT_OBJECTIVE_REGRET_TOL: {PWL_OBJ_TOL}")
+    print(f"GUROBI_SOLVER_FEASIBILITY_TOL: {FEAS_TOL}")
+    print(f"R9_PWL_POINTS: {R9_PWL_POINTS}")
+    print(f"GUROBI_GATE: {'CHECKED' if args.require_gurobi else 'OPTIONAL'}")
     print(f"R9 STATUS: {status}")
     print("ARTIFACT: r9_end_to_end.json")
     return 0 if status == "PASS" else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

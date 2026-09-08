@@ -176,6 +176,10 @@ def main() -> int:
     print(f"FAILURES: {len(failures)}")
     print(f"MAX_GRADIENT_ABS_ERROR: {max_grad:.12g}")
     print(f"MAX_HESSIAN_ABS_ERROR: {max_hess:.12g}")
+    if failures:
+        print("FAILED_CASES:")
+        for failure in failures:
+            print(json.dumps(asdict(failure), sort_keys=True))
     print(f"R8 STATUS: {out['status']}")
     print("ARTIFACT: r8_math_validation.json")
     return 0 if not failures else 1

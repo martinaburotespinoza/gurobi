@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import erf, exp, sqrt, pi
+from statistics import NormalDist
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 
 SQRT2PI = sqrt(2 * pi)
+_STD_NORMAL = NormalDist()
 
 
 def phi(z: float) -> float:
@@ -144,14 +146,8 @@ def _economic_unconstrained_q(lam: float, revenue: float, cost: float, salvage: 
         return 0.0
     if critical_fractile >= 1:
         return np.inf
-    lo, hi = -10.0, 10.0
-    for _ in range(90):
-        mid = 0.5 * (lo + hi)
-        if Phi(mid) < critical_fractile:
-            lo = mid
-        else:
-            hi = mid
-    return max(0.0, lam + sqrt(lam) * 0.5 * (lo + hi))
+    z = _STD_NORMAL.inv_cdf(critical_fractile)
+    return max(0.0, lam + sqrt(lam) * z)
 
 
 def solve_round1_closed_form(sc: Scenario) -> dict:

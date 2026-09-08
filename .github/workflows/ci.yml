@@ -1,7 +1,9 @@
 name: Gurobean CI
+
 on:
   push:
   pull_request:
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -17,3 +19,24 @@ jobs:
       - run: pip install -e '.[test]'
       - run: python -m compileall -q gurobean scripts
       - run: pytest -q
+      - run: python scripts/r8_math_validation.py
+      - run: python scripts/r9_end_to_end.py
+
+  release-reference-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[test]'
+      - run: python scripts/validate_all.py
+      - run: python scripts/validate_production.py
+      - run: python scripts/check_gurobi.py
+        continue-on-error: true
+      - name: Explain Gurobi boundary
+        run: |
+          echo 'CI reference validation is complete.'
+          echo 'Licensed real-Gurobi certification remains a mandatory local release gate.'
+          echo 'No CI fallback is allowed to represent a Gurobi PASS.'

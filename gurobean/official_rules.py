@@ -45,6 +45,8 @@ def arrival_rate_from_markup(
         raise ValueError("arrival rates must be > 0")
     if reference_markup <= 0:
         raise ValueError("reference_markup must be > 0")
+    if reference_rate > baseline_rate:
+        raise ValueError("reference_rate must be <= baseline_rate for markup to reduce arrivals")
 
     a = log(reference_rate / baseline_rate)
     exponent = a * markup / reference_markup

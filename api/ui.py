@@ -10,6 +10,22 @@ PATCH = r'''<style>
 #liveCapture{position:fixed;right:18px;bottom:18px;z-index:9999;text-decoration:none;background:#173b68;color:#fff;border:1px solid #2c5785;border-radius:999px;padding:11px 15px;font:800 11px system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 10px 30px rgba(23,59,104,.22)}#liveCapture:hover{transform:translateY(-1px)}
 </style><a id="liveCapture" href="/capture">🎥 Capturar juego en vivo</a><script>
 (function(){
+  /* Public Vercel has no local Gurobi license. Force public execution to the
+     SciPy/reference backend so the visible Run button actually works. */
+  const nativeFetch=window.fetch.bind(window);
+  window.fetch=async function(input,init){
+    try{
+      const url=typeof input==='string'?input:(input&&input.url)||'';
+      if(url.includes('/solve')&&init&&typeof init.body==='string'){
+        const body=JSON.parse(init.body);
+        if(body&&body.backend==='gurobi'){
+          body.backend='scipy';
+          init={...init,body:JSON.stringify(body)};
+        }
+      }
+    }catch(_e){}
+    return nativeFetch(input,init);
+  };
   const status=document.getElementById('status');
   const note=document.getElementById('note');
   function setStatus(kind,text){
@@ -20,18 +36,16 @@ PATCH = r'''<style>
   }
   async function health(){
     const paths=['/api/health','/health'];
-    let last='';
     for(const path of paths){
       try{
-        const r=await fetch(path,{cache:'no-store',headers:{Accept:'application/json'}});
+        const r=await nativeFetch(path,{cache:'no-store',headers:{Accept:'application/json'}});
         if(!r.ok)throw new Error('HTTP '+r.status);
         const data=await r.json();
         if(data&&data.status==='ok'){
           setStatus('ok','Motor conectado');
           return true;
         }
-        last='Respuesta inválida';
-      }catch(e){last=e.message||String(e)}
+      }catch(_e){}
     }
     setStatus('bad','Motor desconectado');
     if(note)note.textContent='No se pudo conectar con el motor. Actualiza la página para reintentar.';

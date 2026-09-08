@@ -72,12 +72,14 @@ def solve_gurobi_round(sc, round_number: int, pwl_points: int = PWL_POINTS_DEFAU
         if hi <= 1e-12:
             return None
 
-        # The exact economic stationary point is an optimizer whenever the
-        # corresponding resource constraints are inactive.  Anchoring it in
-        # the PWL mesh prevents the solver from being forced to a neighboring
-        # breakpoint merely because the global mesh spacing is finite.
+        # Exact economic stationary point is an optimizer whenever resource
+        # constraints are inactive.  The distribution mean is also the point
+        # of maximum curvature; anchoring it lets the adaptive refinement
+        # split at the curvature peak instead of wasting a bisection step.
         anchors = list(critical_points or [])
         anchors.append(_economic_anchor(lam, revenue, cost, salvage, hi))
+        if 0.0 < float(lam) < hi:
+            anchors.append(float(lam))
 
         xs = _model._adaptive_pwl_points(
             hi, lam, revenue, salvage, anchors, points

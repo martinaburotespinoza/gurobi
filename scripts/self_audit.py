@@ -2,17 +2,20 @@
 
 This gate is solver-independent. It checks the mathematical reference layer,
 public API boundaries, deterministic simulation behavior, finite-input
-invariants, and the certification boundary. It must never report
-licensed-Gurobi certification; that remains the explicit R9 release gate.
+invariants, R9 scenario contracts, and the certification boundary. It must
+never report licensed-Gurobi certification; that remains the explicit R9
+release gate.
 """
 from __future__ import annotations
 
 import ast
 import math
+import random
 from pathlib import Path
 
 from gurobean.model import Scenario, expected_newsvendor_profit, solve_round_scipy
 from gurobean.simulation import GurobeanSimulationConfig, simulate_gurobean, simulate_queue
+import scripts.r9_end_to_end as r9
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -63,6 +66,15 @@ def audit_reference_layer() -> None:
     assert r1["Q_hot"] >= 0.0
     assert math.isfinite(float(r1["objective"]))
     _assert_close(expected_newsvendor_profit(0.0, 0.0, 3.0, 1.0), 0.0)
+
+
+def audit_r9_scenario_contract() -> None:
+    rng = random.Random(r9.SEED)
+    for i in range(r9.CASES):
+        sc = r9._scenario(rng, i % 4)
+        assert abs(sc.p_hot + sc.p_cold - 1.0) <= 1e-12
+        assert sc.salvage_hot == 0.0 and sc.salvage_cold == 0.0
+        assert sc.lambda_hot + sc.lambda_cold == sc.lambda_total
 
 
 def audit_simulation_layer() -> None:
@@ -121,9 +133,11 @@ def audit_source_contract() -> None:
 def main() -> int:
     audit_source_contract()
     audit_reference_layer()
+    audit_r9_scenario_contract()
     audit_simulation_layer()
     print("SELF_AUDIT: PASS")
     print("REFERENCE_LAYER: PASS")
+    print("R9_SCENARIO_CONTRACT: PASS")
     print("SIMULATION_LAYER: PASS")
     print("SOURCE_CONTRACT: PASS")
     print("GUROBI_CERTIFICATION: NOT_CLAIMED")

@@ -12,8 +12,9 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 - **Simulation:** reproducible M/M/1 baseline plus a configurable continuous-time coffee-shop simulator with inventory, balking, multi-cup orders and service-rate cost.
 - **Experiments:** seeded batches, aggregation and cross-validation.
 - **Validation:** analytical-vs-Monte-Carlo checks, deterministic self-audit and production validation commands.
-- **API:** FastAPI `/health`, `/metadata`, `/solve`; all eight rounds are executable, with R5-R8 using the simulation backend.
+- **API:** FastAPI `/health`, `/metadata`, `/solve`, `/evaluate`, and assistant endpoints; all eight rounds are executable, with R5-R8 using the simulation backend.
 - **CI:** Python 3.10-3.13 compile + test matrix plus reference/release-boundary audits.
+- **Public web:** Vercel-ready public console with API routing and explicit certification-boundary messaging.
 
 ## Validate the engine
 
@@ -25,6 +26,14 @@ python scripts/validate_production.py
 python scripts/r8_math_validation.py
 python scripts/r9_end_to_end.py
 ```
+
+For the complete non-licensed pre-live gate, run:
+
+```bash
+python scripts/pre_live_game_check.py
+```
+
+That check deliberately cannot manufacture an R9 PASS: the final release requires a real licensed Gurobi environment, and R5-R8 formal game parity requires real observations and evidence validation.
 
 `check_gurobi.py` deliberately returns a non-zero status when `gurobipy` or a valid Gurobi license is unavailable; the engine never fakes a solver result.
 
@@ -38,7 +47,7 @@ python scripts/check_gurobi.py
 python scripts/r9_release.py
 ```
 
-A release is accepted only when the command reports `GUROBI_GATE: CHECKED` and `R9 STATUS: PASS`. It creates `r9_release_certification.json`, which records the exact Git commit, seeded cases, round results, objective regrets, solver-objective errors, refinement events and failures. See `docs/R9_RELEASE_GATE.md` and `docs/MATHEMATICAL_SPEC.md` for the normative definitions.
+A release is accepted only when the command reports `GUROBI_GATE: CHECKED` and `R9 STATUS: PASS`. It creates `r9_release_certification.json`, which records the exact Git commit, seeded cases, round results, objective regrets, solver-objective errors, refinement events and failures. See `docs/R9_RELEASE_GATE.md`, `docs/LIVE_TEST_READINESS.md` and `docs/MATHEMATICAL_SPEC.md` for the normative definitions.
 
 ## R5-R8 operational boundary
 

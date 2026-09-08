@@ -2,7 +2,7 @@
 
 ## Authority
 
-The normative game definition is the official Gurobi Game Guide. It states that Gurobean uses Poisson arrivals, splits arrivals into hot/cold demand, approximates hourly demand by a Normal distribution with the same mean and variance for optimization, and builds the objective from a newsvendor formulation. It also states the progression of rounds 1–8: brewing, brewing cost, markup, balking, multi-cup orders, and service-rate/barista cost.
+The normative game definition is the official Gurobi Game Guide and its companion technical teaching materials. Gurobi states that Gurobean uses Poisson arrivals, splits hourly demand into hot/cold demand, approximates hourly demand by a Normal distribution with the same mean and variance for optimization, and builds the early-round objective from a newsvendor formulation. It also states the progression of rounds 1–8: brewing, brewing cost, markup, balking, multi-cup orders, and service-rate/barista cost.
 
 Source: https://www.gurobi.com/academics/gurobean/game-guide
 
@@ -30,6 +30,19 @@ Resource constraints are explicit linear constraints:
 
 The independent reference implementation evaluates the exact Normal-newsboy objective; Gurobi is independently checked against that reference. The PWL solver representation is a numerical approximation and is therefore validated against the exact objective at the returned decision.
 
+## Published R5 relationship
+
+The official Gurobi technical teaching deck publishes the markup-dependent arrival relationship explicitly:
+
+- `lambda(m) = lambda_bar * exp(a*m/m0)`
+- `a = ln(lambda_0 / lambda_bar)`
+- `lambda_h = lambda * psi_h`
+- `lambda_c = lambda * psi_c`
+
+The parameterization implies `lambda(0) = lambda_bar` and `lambda(m0) = lambda_0`. The implementation in `gurobean/official_rules.py` evaluates this published relationship and validates both anchor points. It remains deliberately separate from the production optimizer: having the published functional relationship does not by itself establish every scenario parameter, objective interaction, domain bound, or complete R5 release case.
+
+Source: Gurobean Technical Teaching Deck, “Nonlinear Model”, slide 27 (PDF page index 26).
+
 ## R5–R8 provenance boundary
 
 The official guide establishes the mechanisms:
@@ -39,7 +52,7 @@ The official guide establishes the mechanisms:
 - R7: customers can order multiple cups, increasing effective demand.
 - R8: service rate `mu` becomes a decision and a barista cost `B(mu)` is subtracted from profit.
 
-The guide presents the detailed response relationships for these mechanisms in figures. This repository does **not** infer numerical coefficients, functional forms, or hidden constants from generic queueing theory, synthetic observations, or visual guesses. Such equations can enter production only when they are recovered from an authoritative game artifact or reproducible real-game observations and pass the evidence gate.
+The detailed R6–R8 response relationships are not exposed as machine-readable equations in the currently published technical materials reviewed here. This repository therefore does **not** infer numerical coefficients, functional forms, or hidden constants from generic queueing theory, synthetic observations, or visual guesses. Such equations can enter production only when they are recovered from an authoritative game artifact or reproducible real-game observations and pass the evidence gate.
 
 ## Simulation contract
 
@@ -49,4 +62,4 @@ The simulator is a validation instrument, not an authority for hidden game equat
 
 A green CI/reference result is not equivalent to a licensed-Gurobi release certification. The final R9 gate requires the real `gurobipy` binding, a valid license, OPTIMAL status for every release case, explicit feasibility, exact-objective regret within the release tolerance, and agreement between the solver's reported PWL objective and the exact analytical objective.
 
-R5–R8 remain `CALIBRATION_GATED` until their numerical response relationships have authoritative provenance. No fallback, mock, synthetic calibration, or reference-only run may be presented as a Gurobi certification.
+R5–R8 remain `CALIBRATION_GATED` until their complete numerical response relationships and scenario parameters have authoritative provenance. No fallback, mock, synthetic calibration, or reference-only run may be presented as a Gurobi certification.

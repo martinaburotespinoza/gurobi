@@ -11,8 +11,8 @@ build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
 gurobi = ["gurobipy>=12"]
-test = ["pytest>=8"]
-api = ["fastapi>=0.115", "uvicorn>=0.30"]
+test = ["pytest>=8", "fastapi>=0.128,<1", "httpx>=0.27"]
+api = ["fastapi>=0.128,<1", "uvicorn>=0.30"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

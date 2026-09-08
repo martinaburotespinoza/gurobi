@@ -73,7 +73,9 @@ def _scenario(rng: random.Random, edge: int) -> Scenario:
 
     rh, rc = rng.uniform(1.0, 8.0), rng.uniform(1.0, 8.0)
     ch, cc = rng.uniform(0.0, 0.8 * rh), rng.uniform(0.0, 0.8 * rc)
-    sh, sc = rng.uniform(0.0, ch), rng.uniform(0.0, cc)
+    # The official game treats unsold coffee as waste; no positive salvage
+    # value is part of the R1-R4 game objective.
+    sh, sc = 0.0, 0.0
     bh, bc = rng.uniform(0.05, 2.0), rng.uniform(0.05, 2.0)
     wh, wc = rng.uniform(0.1, 3.0), rng.uniform(0.1, 3.0)
     scale = lam * (0.55 if edge == 1 else rng.uniform(0.8, 2.0)) if edge != 2 else 0.002
@@ -186,7 +188,7 @@ def _concave_polygon_reference(sc: Scenario, round_number: int) -> dict:
     if _feasible(float(stationary[0]), float(stationary[1]), sc):
         candidates.append((_objective(sc, round_number, float(stationary[0]), float(stationary[1])), stationary))
     for v in vertices:
-        candidates.append((_objective(sc, round_number, float(v[0]), float(v[1])), v)
+        candidates.append((_objective(sc, round_number, float(v[0]), float(v[1])), v))
     if len(vertices) >= 2:
         center = np.mean(np.stack(vertices), axis=0)
         ordered = sorted(vertices, key=lambda x: math.atan2(float(x[1] - center[1]), float(x[0] - center[0])))
@@ -280,6 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     status = "PASS" if not reference_failures and not gurobi_failures and gate_ok else "FAIL"
 
     artifact = {
+        "schema": "gurobean.r9.end-to-end.v2",
         "seed": SEED,
         "cases": CASES,
         "rounds": list(ROUNDS),

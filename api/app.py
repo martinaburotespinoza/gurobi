@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
 from gurobean.assistant import ask as ask_assistant, evidence_context
+from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
 app = FastAPI(title="Gurobean Engine API", version="0.3.0", docs_url="/docs", redoc_url="/redoc")
@@ -50,28 +51,20 @@ class ScenarioInput(BaseModel):
 
 
 class DynamicInput(BaseModel):
-    # R5 official arrival anchors. These are explicit so the engine never hides a calibration assumption.
     arrival_baseline_rate: float = Field(default=60.0, gt=0)
     arrival_reference_rate: float = Field(default=36.0, gt=0)
     reference_markup: float = Field(default=1.0, gt=0)
     markup_min: float = Field(default=0.0, ge=0)
     markup_max: float = Field(default=5.0, gt=0)
-
-    # R6 calibrated stay/balking response over queue length.
     balking_a: float = 2.0
     balking_b: float = -0.15
-
-    # R7 shifted-Poisson extra-cup parameter.
     multi_cup_theta: float = Field(default=1.0, ge=0)
-
-    # R8 service-rate decision and convex cost curve.
     service_rate_base: float = Field(default=65.0, gt=0)
     service_rate_min: float = Field(default=50.0, gt=0)
     service_rate_max: float = Field(default=90.0, gt=0)
     service_cost_fixed: float = Field(default=0.0, ge=0)
     service_cost_linear: float = Field(default=4.0, ge=0)
     service_cost_quadratic: float = Field(default=0.0, ge=0)
-
     hours: int = Field(default=120, ge=1, le=240)
     warmup_hours: int = Field(default=0, ge=0, lt=240)
     replications: int = Field(default=4, ge=1, le=32)
@@ -89,6 +82,8 @@ class DynamicInput(BaseModel):
             raise ValueError("service_rate_base must be within service-rate bounds")
         if self.warmup_hours >= self.hours:
             raise ValueError("warmup_hours must be smaller than hours")
+        if self.arrival_reference_rate > self.arrival_baseline_rate:
+            raise ValueError("arrival_reference_rate must be <= arrival_baseline_rate")
         return self
 
 
@@ -97,6 +92,29 @@ class SolveRequest(BaseModel):
     scenario: ScenarioInput
     backend: Literal["scipy", "gurobi", "closed_form", "simulation"] = "scipy"
     dynamic: DynamicInput = Field(default_factory=DynamicInput)
+
+
+class EvaluateRequest(BaseModel):
+    round_number: int = Field(ge=1, le=8)
+    scenario: ScenarioInput
+    q_hot: float = Field(ge=0)
+    q_cold: float = Field(ge=0)
+    markup: float = Field(default=0.0, ge=0)
+    service_rate: float = Field(default=65.0, gt=0)
+    replications: int = Field(default=30, ge=1, le=1000)
+    seed: int = Field(default=42)
+    hours: int = Field(default=120, ge=1, le=240)
+    warmup_hours: int = Field(default=0, ge=0, lt=240)
+    barista_cost_per_hour: float = Field(default=0.0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_evaluation(self) -> "EvaluateRequest":
+        values = self.model_dump()
+        if any(not isfinite(float(v)) for v in values.values() if isinstance(v, (int, float))):
+            raise ValueError("evaluation numeric values must be finite")
+        if self.warmup_hours >= self.hours:
+            raise ValueError("warmup_hours must be smaller than hours")
+        return self
 
 
 class AskRequest(BaseModel):
@@ -129,6 +147,7 @@ def metadata() -> dict:
         "gurobi_backend": "solver-backed-pwl-for-r1-r4",
         "gurobi_license_required": True,
         "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search",
+        "evaluation_backend": "repeated-120-hour-simulation-with-95ci",
         "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True},
         "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate.",
     }
@@ -170,3 +189,37 @@ def solve(request: SolveRequest) -> dict:
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"ok": True, "round": request.round_number, "result": result}
+
+
+@app.post("/evaluate")
+def evaluate(request: EvaluateRequest) -> dict:
+    try:
+        scenario = Scenario(**request.scenario.model_dump())
+        cost = request.barista_cost_per_hour if request.round_number >= 8 else 0.0
+        summary = evaluate_scenario(
+            scenario,
+            markup=request.markup,
+            q_hot=request.q_hot,
+            q_cold=request.q_cold,
+            service_rate=request.service_rate,
+            replications=request.replications,
+            seed=request.seed,
+            hours=request.hours,
+            warmup_hours=request.warmup_hours,
+            barista_cost_per_hour=cost,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "ok": True,
+        "round": request.round_number,
+        "candidate": {
+            "Q_hot": request.q_hot,
+            "Q_cold": request.q_cold,
+            "markup": request.markup,
+            "service_rate": request.service_rate,
+        },
+        "evaluation": summary.as_dict(),
+        "formal_game_certified": False,
+        "note": "Evaluation is a repeated simulation estimate; it is not a Gurobean game certification claim.",
+    }

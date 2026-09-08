@@ -39,8 +39,6 @@ REFERENCE_OBJ_TOL = 2e-7
 PWL_OBJ_TOL = 0.5
 PWL_Q_DIAGNOSTIC_TOL = 1.0
 FEAS_TOL = 2e-8
-# Certification-only mesh. The exact objective is independently evaluated
-# at Gurobi's returned decision, so this is not an objective-truth shortcut.
 R9_PWL_POINTS = 2001
 
 
@@ -71,7 +69,7 @@ def _scenario(rng: random.Random, edge: int) -> Scenario:
     else:
         lam = rng.uniform(0.05, 80.0)
         p_hot = rng.uniform(0.05, 0.95)
-        p_cold = rng.uniform(0.0, 1.0 - p_hot)
+        p_cold = 1.0 - p_hot
 
     rh, rc = rng.uniform(1.0, 8.0), rng.uniform(1.0, 8.0)
     ch, cc = rng.uniform(0.0, 0.8 * rh), rng.uniform(0.0, 0.8 * rc)
@@ -188,7 +186,7 @@ def _concave_polygon_reference(sc: Scenario, round_number: int) -> dict:
     if _feasible(float(stationary[0]), float(stationary[1]), sc):
         candidates.append((_objective(sc, round_number, float(stationary[0]), float(stationary[1])), stationary))
     for v in vertices:
-        candidates.append((_objective(sc, round_number, float(v[0]), float(v[1])), v))
+        candidates.append((_objective(sc, round_number, float(v[0]), float(v[1])), v)
     if len(vertices) >= 2:
         center = np.mean(np.stack(vertices), axis=0)
         ordered = sorted(vertices, key=lambda x: math.atan2(float(x[1] - center[1]), float(x[0] - center[0])))

@@ -38,30 +38,38 @@ def solve_payload(round_number: int, backend: str) -> dict:
     }
 
 
+def check(client: TestClient, method: str, path: str, payload=None) -> None:
+    response = client.request(method, path, json=payload)
+    if response.status_code != 200:
+        raise SystemExit(f"FAIL {method} {path}: {response.status_code} {response.text}")
+
+
 def main() -> None:
     client = TestClient(app)
-    checks = [
-        ("GET", "/health", None),
-        ("GET", "/metadata", None),
-        ("POST", "/solve", solve_payload(1, "scipy")),
-        ("POST", "/solve", solve_payload(5, "simulation")),
-        ("POST", "/solve", solve_payload(8, "simulation")),
-        ("POST", "/evaluate", {
-            "round_number": 8,
-            "scenario": scenario(),
-            "q_hot": 5.0,
-            "q_cold": 5.0,
-            "markup": 1.0,
-            "service_rate": 65.0,
-            "replications": 1,
-            "hours": 2,
-        }),
-    ]
-    for method, path, payload in checks:
-        response = client.request(method, path, json=payload)
-        if response.status_code != 200:
-            raise SystemExit(f"FAIL {method} {path}: {response.status_code} {response.text}")
-    print("PUBLIC CONTRACT: PASS")
+    check(client, "GET", "/health")
+    metadata = client.get("/metadata")
+    if metadata.status_code != 200:
+        raise SystemExit(f"FAIL GET /metadata: {metadata.status_code} {metadata.text}")
+    rounds = metadata.json()["rounds"]["implemented"]
+    if rounds != list(range(1, 9)):
+        raise SystemExit(f"FAIL metadata rounds: {rounds}")
+
+    for round_number in range(1, 5):
+        check(client, "POST", "/solve", solve_payload(round_number, "scipy"))
+    for round_number in range(5, 9):
+        check(client, "POST", "/solve", solve_payload(round_number, "simulation"))
+
+    check(client, "POST", "/evaluate", {
+        "round_number": 8,
+        "scenario": scenario(),
+        "q_hot": 5.0,
+        "q_cold": 5.0,
+        "markup": 1.0,
+        "service_rate": 65.0,
+        "replications": 1,
+        "hours": 2,
+    })
+    print("PUBLIC CONTRACT: PASS (R1-R8 + evaluate)")
 
 
 if __name__ == "__main__":

@@ -76,6 +76,27 @@ def test_dynamic_rounds_execute_operationally_without_fake_certification():
         assert math.isfinite(float(result["objective"]))
 
 
+def test_evaluate_endpoint_returns_uncertainty_metrics():
+    from fastapi.testclient import TestClient
+    from api.app import app
+
+    payload = _payload(round_number=5)
+    payload.update({"q_hot": 10.0, "q_cold": 0.0, "markup": 1.0, "service_rate": 35.0})
+    payload.pop("backend", None)
+    payload.pop("dynamic", None)
+    payload["replications"] = 2
+    payload["hours"] = 2
+    response = TestClient(app).post("/evaluate", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["formal_game_certified"] is False
+    evaluation = body["evaluation"]
+    assert evaluation["replications"] == 2
+    assert math.isfinite(float(evaluation["mean_profit"]))
+    assert evaluation["ci95_low"] <= evaluation["ci95_high"]
+
+
 def test_invalid_drink_mix_is_rejected_at_api_boundary():
     from fastapi.testclient import TestClient
     from api.app import app

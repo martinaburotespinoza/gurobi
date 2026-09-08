@@ -44,8 +44,9 @@ def metadata() -> dict:
     return {
         "rounds": {"implemented": [1, 2, 3, 4], "calibration_required": [5, 6, 7, 8]},
         "backends": ["scipy", "gurobi", "closed_form"],
-        "gurobi_native": False,
-        "note": "R1-R4 Gurobi adapter uses solver-backed PWL validation of the analytical Normal-newsvendor objective.",
+        "gurobi_backend": "solver-backed-pwl",
+        "gurobi_license_required": True,
+        "note": "R1-R4 Gurobi adapter uses solver-backed PWL validation of the analytical Normal-newsvendor objective; API metadata never claims license availability.",
     }
 
 

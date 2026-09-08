@@ -13,8 +13,8 @@ from typing import Callable
 
 import numpy as np
 
-from .model import Scenario
-from .simulation import GurobeanSimulationConfig, SimulationResult, simulate_gurobean
+from .model import Scenario, _feasible
+from .simulation import GurobeanSimulationConfig, simulate_gurobean
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,8 @@ def evaluate_candidate(
 
     for i in range(replications):
         rep_seed = int(seed + i * 100003)
-        result, economics = simulate_gurobean(config_factory(rep_seed))
+        config = config_factory(rep_seed)
+        result, economics = simulate_gurobean(config)
         if hours is None:
             hours = result.hours
         elif result.hours != hours:
@@ -96,6 +97,8 @@ def evaluate_candidate(
         utilizations.append(float(result.utilization))
 
     arr = np.asarray(profits, dtype=float)
+    if not np.all(np.isfinite(arr)):
+        raise ValueError("simulation produced non-finite profit")
     mean = float(np.mean(arr))
     sd = float(np.std(arr, ddof=1)) if replications > 1 else 0.0
     se = float(sd / sqrt(replications)) if replications > 1 else 0.0
@@ -131,11 +134,19 @@ def evaluate_scenario(
     warmup_hours: int = 0,
     barista_cost_per_hour: float = 0.0,
 ) -> EvaluationSummary:
-    """Evaluate a concrete decision under the supplied scenario."""
+    """Evaluate a concrete decision under the supplied scenario.
+
+    Markup is an additive amount: price = coffee cost + markup, matching the
+    published Gurobean model. Resource feasibility is checked before simulation.
+    """
+    if not np.isfinite(markup) or markup < 0:
+        raise ValueError("markup must be finite and >= 0")
     if q_hot < 0 or q_cold < 0:
         raise ValueError("brew quantities must be >= 0")
     if service_rate <= 0:
         raise ValueError("service_rate must be > 0")
+    if not _feasible(q_hot, q_cold, scenario):
+        raise ValueError("brew quantities violate the supplied resource constraints")
 
     def factory(rep_seed: int) -> GurobeanSimulationConfig:
         return GurobeanSimulationConfig(
@@ -149,8 +160,8 @@ def evaluate_scenario(
             mu_rate=service_rate,
             brew_hot_per_hour=q_hot,
             brew_cold_per_hour=q_cold,
-            revenue_hot=scenario.revenue_hot + markup,
-            revenue_cold=scenario.revenue_cold + markup,
+            revenue_hot=scenario.cost_hot + markup,
+            revenue_cold=scenario.cost_cold + markup,
             brew_cost_hot=scenario.cost_hot,
             brew_cost_cold=scenario.cost_cold,
             barista_cost_per_hour=barista_cost_per_hour,

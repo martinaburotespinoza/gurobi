@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from math import isfinite
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
 from gurobean.assistant import ask as ask_assistant, evidence_context
+from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-app = FastAPI(title="Gurobean Engine API", version="0.2.6", docs_url="/docs", redoc_url="/redoc")
+app = FastAPI(title="Gurobean Engine API", version="0.3.0", docs_url="/docs", redoc_url="/redoc")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -46,30 +49,88 @@ class ScenarioInput(BaseModel):
         return self
 
 
+class DynamicInput(BaseModel):
+    # R5 official arrival anchors. These are explicit so the engine never hides a calibration assumption.
+    arrival_baseline_rate: float = Field(default=60.0, gt=0)
+    arrival_reference_rate: float = Field(default=36.0, gt=0)
+    reference_markup: float = Field(default=1.0, gt=0)
+    markup_min: float = Field(default=0.0, ge=0)
+    markup_max: float = Field(default=5.0, gt=0)
+
+    # R6 calibrated stay/balking response over queue length.
+    balking_a: float = 2.0
+    balking_b: float = -0.15
+
+    # R7 shifted-Poisson extra-cup parameter.
+    multi_cup_theta: float = Field(default=1.0, ge=0)
+
+    # R8 service-rate decision and convex cost curve.
+    service_rate_base: float = Field(default=65.0, gt=0)
+    service_rate_min: float = Field(default=50.0, gt=0)
+    service_rate_max: float = Field(default=90.0, gt=0)
+    service_cost_fixed: float = Field(default=0.0, ge=0)
+    service_cost_linear: float = Field(default=4.0, ge=0)
+    service_cost_quadratic: float = Field(default=0.0, ge=0)
+
+    hours: int = Field(default=120, ge=1, le=240)
+    warmup_hours: int = Field(default=0, ge=0, lt=240)
+    replications: int = Field(default=4, ge=1, le=32)
+    seed: int = Field(default=42)
+    coordinate_points: int = Field(default=7, ge=3, le=15)
+
+    @model_validator(mode="after")
+    def validate_dynamic(self) -> "DynamicInput":
+        values = self.model_dump()
+        if any(not isfinite(float(v)) for v in values.values() if isinstance(v, (int, float))):
+            raise ValueError("dynamic numeric values must be finite")
+        if self.markup_max <= self.markup_min:
+            raise ValueError("markup_max must be greater than markup_min")
+        if not self.service_rate_min <= self.service_rate_base <= self.service_rate_max:
+            raise ValueError("service_rate_base must be within service-rate bounds")
+        if self.warmup_hours >= self.hours:
+            raise ValueError("warmup_hours must be smaller than hours")
+        return self
+
+
 class SolveRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
     scenario: ScenarioInput
-    backend: Literal["scipy", "gurobi", "closed_form"] = "scipy"
+    backend: Literal["scipy", "gurobi", "closed_form", "simulation"] = "scipy"
+    dynamic: DynamicInput = Field(default_factory=DynamicInput)
 
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
 
 
+@app.get("/")
+def root():
+    frontend = Path(__file__).resolve().parent.parent / "web" / "index.html"
+    if not frontend.is_file():
+        raise HTTPException(status_code=500, detail="web/index.html not found")
+    return FileResponse(frontend, media_type="text/html")
+
+
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "gurobean-engine", "version": "0.2.6", "ai": "grounded-local"}
+    return {"status": "ok", "service": "gurobean-engine", "version": "0.3.0", "ai": "grounded-local"}
 
 
 @app.get("/metadata")
 def metadata() -> dict:
     return {
-        "rounds": {"implemented": [1, 2, 3, 4], "calibration_required": [5, 6, 7, 8]},
-        "backends": ["scipy", "gurobi", "closed_form"],
-        "gurobi_backend": "solver-backed-pwl",
+        "rounds": {
+            "implemented": [1, 2, 3, 4, 5, 6, 7, 8],
+            "analytical_gurobi_certified": [1, 2, 3, 4],
+            "simulation_enabled": [5, 6, 7, 8],
+            "formal_game_certification_required": [5, 6, 7, 8],
+        },
+        "backends": ["scipy", "gurobi", "closed_form", "simulation"],
+        "gurobi_backend": "solver-backed-pwl-for-r1-r4",
         "gurobi_license_required": True,
+        "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search",
         "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True},
-        "note": "R1-R4 Gurobi adapter uses solver-backed PWL validation of the analytical Normal-newsvendor objective; API metadata never claims license availability.",
+        "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate.",
     }
 
 
@@ -88,13 +149,24 @@ def ai_ask(request: AskRequest) -> dict:
 
 @app.post("/solve")
 def solve(request: SolveRequest) -> dict:
-    if request.round_number > 4:
-        raise HTTPException(status_code=501, detail=f"R{request.round_number} is calibration-gated and is not enabled for solving")
-    if request.backend == "closed_form" and request.round_number != 1:
-        raise HTTPException(status_code=400, detail="closed_form backend is available only for R1")
+    if request.round_number <= 4:
+        if request.backend == "simulation":
+            raise HTTPException(status_code=400, detail="simulation backend is reserved for R5-R8")
+        if request.backend == "closed_form" and request.round_number != 1:
+            raise HTTPException(status_code=400, detail="closed_form backend is available only for R1")
+        try:
+            sc = Scenario(**request.scenario.model_dump())
+            result = solve_round(request.round_number, sc, backend=request.backend)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"ok": True, "round": request.round_number, "result": result}
+
+    if request.backend in {"gurobi", "closed_form"}:
+        raise HTTPException(status_code=400, detail="R5-R8 use the simulation backend; Gurobi/PWL certification currently covers R1-R4")
     try:
         sc = Scenario(**request.scenario.model_dump())
-        result = solve_round(request.round_number, sc, backend=request.backend)
+        dp = DynamicRoundParams(**request.dynamic.model_dump())
+        result = solve_dynamic_round(sc, request.round_number, dp)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"ok": True, "round": request.round_number, "result": result}

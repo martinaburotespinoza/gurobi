@@ -118,6 +118,8 @@ def audit_source_contract() -> None:
     hits: list[str] = []
     for root in scan_roots:
         for path in root.rglob("*.py"):
+            if path == Path(__file__).resolve():
+                continue
             text = path.read_text(encoding="utf-8")
             tree = ast.parse(text, filename=str(path))
             compile(tree, str(path), "exec")

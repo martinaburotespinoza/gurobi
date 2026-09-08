@@ -1,17 +1,20 @@
 """R9 release gate for licensed production Gurobi certification.
 
-This gate is intentionally stricter than the ordinary R9 harness:
-- the real Gurobi binding must be importable;
-- the model must return OPTIMAL;
-- the returned point must be feasible against the explicit resource model;
+Release policy:
+- the real Gurobi binding and a valid license must be available;
+- every R1-R4 certification case must solve to OPTIMAL;
+- solver decisions must satisfy the explicit resource constraints;
 - the exact analytical objective at the returned point must be within the
-  release regret tolerance of the independent concave reference;
-- Gurobi's reported PWL objective must also agree with the exact objective;
-- every result is written to a deterministic JSON artifact.
+  release regret tolerance of the independent reference optimum;
+- Gurobi's reported PWL objective must agree with the exact objective;
+- adaptive refinement may resolve numerical PWL error, but unresolved cases
+  fail the release gate;
+- the JSON artifact records the FINAL attempt for every case (including any
+  refinement), so the audit record cannot contain stale pre-refinement rows.
 
-R5-R8 game dynamics are not enabled here because their empirical equations
-remain calibration-gated. This file certifies the mathematically closed R1-R4
-production core only.
+R5-R8 are intentionally excluded from this production release gate until
+official game rules/equations and calibration evidence are promoted. No rule
+is fabricated here.
 """
 from __future__ import annotations
 
@@ -71,24 +74,13 @@ def check(sc, round_number: int, points: int) -> CheckResult:
     )
     if not reference_ok:
         return CheckResult(
-            case=-1,
-            round_number=round_number,
-            pwl_points=points,
-            reference_ok=False,
-            gurobi_status=-1,
-            feasible=False,
-            exact_objective=math.nan,
-            reference_objective=exact_ref,
-            exact_regret=math.inf,
-            solver_objective=math.nan,
-            solver_objective_error=math.inf,
-            q_hot=math.nan,
-            q_cold=math.nan,
-            reference_q_hot=rq_h,
-            reference_q_cold=rq_c,
-            q_error=math.inf,
-            passed=False,
-            error="independent reference failed",
+            case=-1, round_number=round_number, pwl_points=points,
+            reference_ok=False, gurobi_status=-1, feasible=False,
+            exact_objective=math.nan, reference_objective=exact_ref,
+            exact_regret=math.inf, solver_objective=math.nan,
+            solver_objective_error=math.inf, q_hot=math.nan, q_cold=math.nan,
+            reference_q_hot=rq_h, reference_q_cold=rq_c, q_error=math.inf,
+            passed=False, error="independent reference failed",
         )
 
     g = model.solve_gurobi_round(sc, round_number, pwl_points=points)
@@ -102,32 +94,26 @@ def check(sc, round_number: int, points: int) -> CheckResult:
     status = int(g["status"])
     q_error = max(abs(qh - rq_h), abs(qc - rq_c))
     passed = bool(
-        status == 2
-        and feasible
-        and math.isfinite(exact_obj)
+        status == 2 and feasible and math.isfinite(exact_obj)
         and math.isfinite(solver_obj)
         and exact_regret <= OBJ_TOL
         and solver_obj_error <= OBJ_TOL
     )
     return CheckResult(
-        case=-1,
-        round_number=round_number,
-        pwl_points=points,
-        reference_ok=True,
-        gurobi_status=status,
-        feasible=feasible,
-        exact_objective=exact_obj,
-        reference_objective=exact_ref,
-        exact_regret=exact_regret,
-        solver_objective=solver_obj,
-        solver_objective_error=solver_obj_error,
-        q_hot=qh,
-        q_cold=qc,
-        reference_q_hot=rq_h,
-        reference_q_cold=rq_c,
-        q_error=q_error,
+        case=-1, round_number=round_number, pwl_points=points,
+        reference_ok=True, gurobi_status=status, feasible=feasible,
+        exact_objective=exact_obj, reference_objective=exact_ref,
+        exact_regret=exact_regret, solver_objective=solver_obj,
+        solver_objective_error=solver_obj_error, q_hot=qh, q_cold=qc,
+        reference_q_hot=rq_h, reference_q_cold=rq_c, q_error=q_error,
         passed=passed,
     )
+
+
+def _with_case(result: CheckResult, case: int) -> CheckResult:
+    data = asdict(result)
+    data["case"] = case
+    return CheckResult(**data)
 
 
 def main() -> int:
@@ -154,40 +140,36 @@ def main() -> int:
     for i in range(r9.CASES):
         sc = r9._scenario(rng, i % 4)
         for rn in r9.ROUNDS:
-            result = check(sc, rn, BASE_POINTS)
-            result = CheckResult(i, result.round_number, result.pwl_points, result.reference_ok,
-                                 result.gurobi_status, result.feasible, result.exact_objective,
-                                 result.reference_objective, result.exact_regret,
-                                 result.solver_objective, result.solver_objective_error,
-                                 result.q_hot, result.q_cold, result.reference_q_hot,
-                                 result.reference_q_cold, result.q_error, result.passed, result.error)
-            if not result.passed and result.reference_ok:
-                resolved = False
+            final = _with_case(check(sc, rn, BASE_POINTS), i)
+
+            if not final.passed and final.reference_ok:
                 for points in REFINE_POINTS:
                     refined += 1
-                    retry = check(sc, rn, points)
-                    retry = CheckResult(i, retry.round_number, retry.pwl_points, retry.reference_ok,
-                                        retry.gurobi_status, retry.feasible, retry.exact_objective,
-                                        retry.reference_objective, retry.exact_regret,
-                                        retry.solver_objective, retry.solver_objective_error,
-                                        retry.q_hot, retry.q_cold, retry.reference_q_hot,
-                                        retry.reference_q_cold, retry.q_error, retry.passed, retry.error)
-                    if retry.passed:
-                        result = retry
-                        resolved = True
+                    retry = _with_case(check(sc, rn, points), i)
+                    final = retry
+                    if final.passed:
                         break
-                if not resolved:
-                    failures.append(asdict(result))
-            elif not result.passed:
-                failures.append(asdict(result))
-            records.append(result)
 
-    max_regret = max((r.exact_regret for r in records if math.isfinite(r.exact_regret)), default=0.0)
-    max_solver_error = max((r.solver_objective_error for r in records if math.isfinite(r.solver_objective_error)), default=0.0)
-    max_q_error = max((r.q_error for r in records if math.isfinite(r.q_error)), default=0.0)
+            # Only the final attempt is authoritative in the artifact.
+            records.append(final)
+            if not final.passed:
+                failures.append(asdict(final))
+
+    max_regret = max(
+        (r.exact_regret for r in records if math.isfinite(r.exact_regret)),
+        default=0.0,
+    )
+    max_solver_error = max(
+        (r.solver_objective_error for r in records if math.isfinite(r.solver_objective_error)),
+        default=0.0,
+    )
+    max_q_error = max(
+        (r.q_error for r in records if math.isfinite(r.q_error)),
+        default=0.0,
+    )
     status = "PASS" if not failures else "FAIL"
     artifact = {
-        "schema": "gurobean.r9.release-certification.v1",
+        "schema": "gurobean.r9.release-certification.v2",
         "seed": r9.SEED,
         "cases": r9.CASES,
         "rounds": list(r9.ROUNDS),
@@ -201,11 +183,14 @@ def main() -> int:
         "max_solver_objective_error": max_solver_error,
         "max_q_error_diagnostic": max_q_error,
         "gurobi_gate": "CHECKED",
+        "r5_r8_status": "CALIBRATION_GATED",
         "status": status,
         "records": [asdict(r) for r in records],
         "failure_records": failures,
     }
-    ARTIFACT.write_text(json.dumps(artifact, indent=2, sort_keys=True), encoding="utf-8")
+    tmp = ARTIFACT.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(artifact, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(ARTIFACT)
 
     print("=== R9 RELEASE CERTIFICATION ===")
     print(f"GUROBI_VERSION: {version}")
@@ -216,7 +201,7 @@ def main() -> int:
     print(f"MAX_EXACT_OBJECTIVE_REGRET: {max_regret:.12g}")
     print(f"MAX_SOLVER_OBJECTIVE_ERROR: {max_solver_error:.12g}")
     print(f"MAX_Q_ERROR: {max_q_error:.12g} (diagnostic)")
-    print(f"GUROBI_GATE: CHECKED")
+    print("GUROBI_GATE: CHECKED")
     print(f"R9 STATUS: {status}")
     print(f"ARTIFACT: {ARTIFACT.name}")
     return 0 if not failures else 1

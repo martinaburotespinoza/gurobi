@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import json
 
 INPUT = Path("r5_adaptive_pwl_experiment.json")
@@ -82,7 +82,6 @@ for strategy_name, strategy_data in results.items():
         "by_points": by_points
     }
 
-# Comparación directa entre estrategias.
 uniform = analysis["strategies"].get("uniform")
 adaptive = analysis["strategies"].get("adaptive")
 

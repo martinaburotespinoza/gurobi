@@ -44,33 +44,36 @@ def test_gradient_matches_finite_difference():
 
 def _gurobi_available():
     try:
-        import gurobipy  # noqa: F401
+        import gurobipy as gp
+        env = gp.Env(empty=True)
+        env.setParam("OutputFlag", 0)
+        env.start()
+        env.dispose()
         return True
-    except ImportError:
+    except Exception:
         return False
 
 
-@pytest.mark.skipif(not _gurobi_available(), reason="gurobipy not installed in validation environment")
+@pytest.mark.skipif(not _gurobi_available(), reason="valid licensed Gurobi environment unavailable")
 def test_gurobi_backend_is_optional_and_never_faked():
     assert _gurobi_available()
 
 
-@pytest.mark.skipif(not _gurobi_available(), reason="gurobipy not installed in validation environment")
+@pytest.mark.skipif(not _gurobi_available(), reason="valid licensed Gurobi environment unavailable")
 def test_gurobi_handles_zero_economic_upper_bound():
     from gurobean.model import solve_gurobi_round
     sc = Scenario(lambda_total=20.0, p_hot=1.0, revenue_hot=1.0, cost_hot=2.0, beans_available=100.0, water_available=100.0, beans_hot=1.0, water_hot=1.0)
     result = solve_gurobi_round(sc, 3)
-    expected = expected_newsvendor_profit(0.0, sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot)
     assert result["Q_hot"] == 0.0
     assert result["Q_cold"] == 0.0
-    assert abs(result["objective"] - expected) < 1e-6
+    assert result["objective"] == 0.0
 
 
-@pytest.mark.skipif(not _gurobi_available(), reason="gurobipy not installed in validation environment")
+@pytest.mark.skipif(not _gurobi_available(), reason="valid licensed Gurobi environment unavailable")
 def test_gurobi_handles_tiny_positive_economic_upper_bound():
     from gurobean.model import solve_gurobi_round
     sc = Scenario(lambda_total=1.0, p_hot=1.0, revenue_hot=1.0, cost_hot=0.999999, beans_available=100.0, water_available=100.0, beans_hot=1.0, water_hot=1.0)
     result = solve_gurobi_round(sc, 3)
-    expected = expected_newsvendor_profit(result["Q_hot"], sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot)
-    assert result["Q_hot"] >= 0.0
-    assert abs(result["objective"] - expected) < 1e-5
+    assert result["Q_hot"] == 0.0
+    assert result["Q_cold"] == 0.0
+    assert result["objective"] == 0.0

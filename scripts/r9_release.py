@@ -4,7 +4,8 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from gurobean import model,r9
+from gurobean import model
+from scripts import r9_end_to_end as r9
 
 REF_TOL=r9.REFERENCE_OBJ_TOL
 OBJ_TOL=2e-6

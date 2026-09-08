@@ -60,7 +60,7 @@ def test_metadata_does_not_claim_license_availability():
     assert metadata["rounds"]["formal_game_certification_required"] == [5, 6, 7, 8]
     assert metadata["gurobi_backend"] == "solver-backed-pwl-for-r1-r4"
     assert metadata["gurobi_license_required"] is True
-    assert "formal game parity" in metadata["note"]
+    assert "formal game-parity" in metadata["note"]
 
 
 def test_dynamic_rounds_execute_operationally_without_fake_certification():

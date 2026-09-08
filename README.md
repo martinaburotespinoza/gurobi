@@ -6,6 +6,7 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 
 - **R1-R4:** implemented with analytical Normal-newsvendor reference solver and a Gurobi PWL validation backend.
 - **R5-R8:** evidence-gated calibration framework plus runtime evaluators for promoted fits; no game rule is invented.
+- **R8 mathematical certification:** independent differential, concavity, stationarity, resource-boundary and objective-decomposition checks over a seeded stress set; this harness does not modify the production model.
 - **Simulation:** reproducible M/M/1 baseline plus a configurable continuous-time coffee-shop simulator with inventory, balking, multi-cup orders and service-rate cost; later-round rules remain calibration-driven.
 - **Experiments:** seeded batches, aggregation and cross-validation.
 - **Validation:** analytical-vs-Monte-Carlo checks and a single production validation command.
@@ -19,6 +20,7 @@ python -m pytest -q
 python scripts/validate_all.py
 python scripts/validate_production.py
 python scripts/check_gurobi.py
+python scripts/r8_math_validation.py
 ```
 
 `check_gurobi.py` deliberately returns a non-zero status when `gurobipy` or a valid Gurobi license is unavailable; the engine never fakes a solver result.

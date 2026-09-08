@@ -83,6 +83,6 @@ def test_120h_r8_load_battery_exercises_service_cost():
     sc = _scenario(28.0, 0.6, 0.4)
     p = _params(4242)
     result = solve_dynamic_round(sc, 8, p)
-    assert result["hours"] == 120
+    assert result["simulation_hours"] == 120
     assert result["service_cost_per_hour"] >= 0.0
     assert math.isfinite(float(result["service_cost_per_hour"]))

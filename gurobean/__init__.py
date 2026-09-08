@@ -12,6 +12,14 @@ from .model import (
 )
 from .simulation import simulate_queue
 
+# R9 fix: install the explicit GenConstrPWL backend before consumers import
+# gurobean.model.solve_gurobi_round.  The backend patches the model module and
+# therefore preserves the existing public API without requiring callers to
+# change imports.
+from .gurobi_backend import install as _install_gurobi_backend
+_install_gurobi_backend()
+from .model import solve_gurobi_round, solve_gurobi_r1
+
 __all__ = [
     "Scenario",
     "RoundConfig",

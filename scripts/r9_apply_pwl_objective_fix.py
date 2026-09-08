@@ -1,29 +1,16 @@
-"""Apply the R9 PWL-objective stability fix to a local checkout.
+"""Apply the R9 native-PWL objective fix to a local checkout.
 
-The old Gurobi adapter represented each profit curve with an auxiliary y
-variable plus addGenConstrPWL(q, y, ...).  For the R1-R4 separable concave
-objective this is unnecessarily fragile at numerical boundaries.  This
-script replaces that adapter with Gurobi's native setPWLObj representation,
-while retaining the same breakpoints, resource constraints, and public
-return schema.
-
-The script is intentionally idempotent: it refuses to patch a file that no
-longer contains the expected old adapter and writes a .bak copy first.
+This replaces the auxiliary-y/addGenConstrPWL adapter with Gurobi's native
+setPWLObj representation. Zero-width economic domains are represented by an
+explicit constant objective so boundary cases retain the exact Q=0 profit.
 """
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 NEW_SOLVER = r'''def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
-    """Solve R1-R4 with native Gurobi PWL objectives.
-
-    The exact continuous objective is concave and separable.  Native PWL
-    objectives avoid auxiliary profit variables and their general PWL
-    constraints, reducing numerical sensitivity while preserving the same
-    mathematical piecewise-linear approximation.
-    """
+    """Solve R1-R4 with native Gurobi PWL objectives."""
     if round_number not in (1, 2, 3, 4):
         raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
     try:
@@ -38,7 +25,6 @@ NEW_SOLVER = r'''def solve_gurobi_round(sc: Scenario, round_number: int, pwl_poi
 
     m = gp.Model(f"gurobean_r{round_number}")
     m.Params.OutputFlag = 0
-    # Tight but still practical tolerances for the certification adapter.
     m.Params.FeasibilityTol = 1e-9
     m.Params.OptimalityTol = 1e-9
     m.Params.NumericFocus = 2
@@ -52,14 +38,18 @@ NEW_SOLVER = r'''def solve_gurobi_round(sc: Scenario, round_number: int, pwl_poi
         m.addConstr(sc.water_hot * qh + sc.water_cold * qc <= sc.water_available, name="water")
 
     resource_vertices = _resource_vertices(sc, include_cold, hot_hi, cold_hi)
+    objective_constant = 0.0
 
     def set_profit_pwl(var, hi, lam, revenue, cost, salvage, critical_points=None, name="profit"):
+        nonlocal objective_constant
         hi = float(hi)
+        f0 = expected_newsvendor_profit(0.0, lam, revenue, cost, salvage)
         if hi <= 1e-12:
+            # Gurobi has no PWL variable to attach on a fixed zero domain;
+            # preserve the exact constant contribution explicitly.
+            objective_constant += float(f0)
             return
         if hi < 1e-5:
-            # Keep the normalized representation for tiny domains to avoid
-            # poorly scaled x coordinates in Gurobi's PWL objective.
             t = m.addVar(lb=0.0, ub=1.0, name=f"{name}_normalized")
             m.addConstr(var == hi * t, name=f"{name}_scale")
             xs = np.linspace(0.0, 1.0, points)
@@ -68,10 +58,7 @@ NEW_SOLVER = r'''def solve_gurobi_round(sc: Scenario, round_number: int, pwl_poi
             return
 
         base_xs = np.linspace(0.0, hi, points)
-        extra = [
-            float(x) for x in (critical_points or [])
-            if -1e-12 <= float(x) <= hi + 1e-12
-        ]
+        extra = [float(x) for x in (critical_points or []) if -1e-12 <= float(x) <= hi + 1e-12]
         xs = np.asarray(
             sorted({round(float(x), 15) for x in np.concatenate((base_xs, np.asarray(extra, dtype=float)))
                     if -1e-12 <= float(x) <= hi + 1e-12}),
@@ -97,18 +84,21 @@ NEW_SOLVER = r'''def solve_gurobi_round(sc: Scenario, round_number: int, pwl_poi
         ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
         m.setPWLObj(var, xs.tolist(), ys)
 
-    m.setObjective(0.0, gp.GRB.MAXIMIZE)
-    set_profit_pwl(
-        qh, hot_hi, sc.lambda_hot, sc.revenue_hot,
-        sc.cost_hot if include_cost else 0.0, sc.salvage_hot,
-        [v[0] for v in resource_vertices], "profit_hot",
-    )
+    # Establish the objective sense before adding native PWL pieces.
+    m.setObjective(objective_constant, gp.GRB.MAXIMIZE)
+    set_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot,
+                   sc.cost_hot if include_cost else 0.0, sc.salvage_hot,
+                   [v[0] for v in resource_vertices], "profit_hot")
     if include_cold:
-        set_profit_pwl(
-            qc, cold_hi, sc.lambda_cold, sc.revenue_cold,
-            sc.cost_cold if include_cost else 0.0, sc.salvage_cold,
-            [v[1] for v in resource_vertices], "profit_cold",
-        )
+        set_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold,
+                       sc.cost_cold if include_cost else 0.0, sc.salvage_cold,
+                       [v[1] for v in resource_vertices], "profit_cold")
+
+    # Add any constants discovered after the initial objective construction.
+    if objective_constant != 0.0:
+        # Re-apply only the constant through the objective expression without
+        # disturbing the native PWL pieces: Gurobi's PWL terms are additive.
+        m.ObjCon = float(objective_constant)
 
     m.optimize()
     if m.Status != gp.GRB.OPTIMAL:
@@ -144,8 +134,7 @@ def main() -> int:
         raise SystemExit("The old PWL adapter is not present; refusing to patch")
     backup = path.with_suffix(path.suffix + ".bak")
     backup.write_text(text, encoding="utf-8")
-    patched = text[:start] + NEW_SOLVER.rstrip() + text[end:]
-    path.write_text(patched, encoding="utf-8")
+    path.write_text(text[:start] + NEW_SOLVER.rstrip() + text[end:], encoding="utf-8")
     print(f"Patched: {path}")
     print(f"Backup : {backup}")
     return 0

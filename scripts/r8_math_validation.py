@@ -34,6 +34,7 @@ GRAD_TOL = 2e-6
 HESS_TOL = 2e-5
 CONCAVITY_TOL = 1e-10
 STATIONARITY_TOL = 3e-6
+KKT_TOL = 3e-6
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,18 @@ def _check_single_product(lam: float, revenue: float, cost: float, salvage: floa
 def _check_closed_form(lam: float, revenue: float, cost: float, salvage: float) -> dict:
     q = _economic_unconstrained_q(lam, revenue, cost, salvage)
     g = expected_newsvendor_gradient(q, lam, revenue, cost, salvage)
-    return {"q": float(q), "gradient_abs": abs(float(g)), "stationary": bool(np.isfinite(q) and abs(float(g)) <= STATIONARITY_TOL)}
+    # The economic optimum is constrained by Q >= 0.  For an interior optimum
+    # the derivative must vanish; at Q=0 the KKT condition is g <= 0.
+    if q > 0.0:
+        residual = abs(float(g))
+        stationary = bool(np.isfinite(q) and residual <= STATIONARITY_TOL)
+        regime = "interior"
+    else:
+        residual = max(0.0, float(g))
+        stationary = bool(np.isfinite(q) and residual <= KKT_TOL)
+        regime = "lower_boundary"
+    return {"q": float(q), "gradient_abs": abs(float(g)), "kkt_residual": residual,
+            "regime": regime, "stationary": stationary}
 
 
 def _check_round_decomposition(sc: Scenario) -> dict:
@@ -167,7 +179,7 @@ def main() -> int:
     failures = [r for r in results if not r.passed]
     max_grad = max((r.checks.get("max_gradient_abs_error", 0.0) for r in results), default=0.0)
     max_hess = max((r.checks.get("max_hessian_abs_error", 0.0) for r in results), default=0.0)
-    out = {"schema": "gurobean.r8.math_validation.v3", "seed": SEED, "cases": CASES, "failures": len(failures),
+    out = {"schema": "gurobean.r8.math_validation.v4", "seed": SEED, "cases": CASES, "failures": len(failures),
            "max_gradient_abs_error": max_grad, "max_hessian_abs_error": max_hess,
            "status": "PASS" if not failures else "FAIL", "results": [asdict(r) for r in results]}
     Path("r8_math_validation.json").write_text(json.dumps(out, indent=2), encoding="utf-8")

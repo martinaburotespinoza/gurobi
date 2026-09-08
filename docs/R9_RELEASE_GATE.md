@@ -18,13 +18,21 @@ A release certification is PASS only when all of the following hold:
 9. If a base PWL mesh misses the release tolerance, deterministic refinement is attempted at 5001, 10001 and 20001 points.
 10. A JSON artifact records the complete certification run, including failures and maxima.
 
+## Numerical release policy
+
+The exploratory R9 harness may use a wider diagnostic tolerance, but the production release gate caps the accepted objective error at `1e-4`. The release artifact records the effective tolerance explicitly. This prevents a loose exploratory threshold from silently becoming a production certification threshold.
+
+The PWL mesh is only a numerical encoding of the exact analytical Normal-newsvendor objective. Acceptance is based on the exact analytical objective evaluated at the solver's returned decision, not on the PWL value alone.
+
 ## Important mathematical boundary
 
 The PWL model is a solver-validation encoding of the exact Normal-newsvendor objective. It is not itself claimed to be an exact native representation of the Normal CDF/PDF. The independent analytical implementation remains the reference truth.
 
 ## R5-R8 boundary
 
-R5 markup, R6 balking, R7 multi-cup orders and R8 service-rate economics remain calibration-gated. Their existence as round concepts is supported by the game specification, but no empirical response equation is enabled without observed evidence. The release gate must never silently substitute synthetic equations for those rules.
+R5 markup, R6 balking, R7 multi-cup orders and R8 service-rate economics remain calibration-gated. Their existence as round concepts is supported by the official game specification, but no empirical response equation is enabled without observed evidence. Synthetic calibration cannot promote a response family into a game rule.
+
+The strict provenance gate is implemented in `gurobean/evidence_gate.py` and accepts only observations explicitly sourced from the real game.
 
 ## Release command
 

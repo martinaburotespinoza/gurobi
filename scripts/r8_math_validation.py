@@ -122,6 +122,15 @@ def _check_round_decomposition(sc: Scenario) -> dict:
     hot_hi, cold_hi = _round_bounds(sc, True, True)
     qh = min(hot_hi, sc.lambda_hot + math.sqrt(sc.lambda_hot))
     qc = min(cold_hi, sc.lambda_cold + math.sqrt(sc.lambda_cold))
+    # The independent box bounds can violate a shared resource when both
+    # products are nonzero. Scale the probe toward the origin until it is
+    # jointly feasible; this validates decomposition, not optimization.
+    if not _feasible(qh, qc, sc):
+        for _ in range(80):
+            qh *= 0.5
+            qc *= 0.5
+            if _feasible(qh, qc, sc):
+                break
     total = _round_objective(sc, True, True, qh, qc)
     hot = expected_newsvendor_profit(qh, sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot)
     cold = expected_newsvendor_profit(qc, sc.lambda_cold, sc.revenue_cold, sc.cost_cold, sc.salvage_cold)
@@ -129,6 +138,8 @@ def _check_round_decomposition(sc: Scenario) -> dict:
         "decomposition_abs_error": abs(total - (hot + cold)),
         "finite": bool(np.isfinite(total)),
         "feasible": _feasible(qh, qc, sc),
+        "probe_q_hot": float(qh),
+        "probe_q_cold": float(qc),
     }
 
 
@@ -201,7 +212,7 @@ def main() -> int:
     max_grad = max((r.checks.get("max_gradient_abs_error", 0.0) for r in results), default=0.0)
     max_hess = max((r.checks.get("max_hessian_abs_error", 0.0) for r in results), default=0.0)
     out = {
-        "schema": "gurobean.r8.math_validation.v2",
+        "schema": "gurobean.r8.math_validation.v3",
         "seed": SEED,
         "cases": CASES,
         "failures": len(failures),

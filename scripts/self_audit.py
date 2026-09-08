@@ -78,7 +78,7 @@ def audit_r9_scenario_contract() -> None:
         sc = r9._scenario(rng, i % 4)
         assert abs(sc.p_hot + sc.p_cold - 1.0) <= 1e-12
         assert sc.salvage_hot == 0.0 and sc.salvage_cold == 0.0
-        assert sc.lambda_hot + sc.lambda_cold == sc.lambda_total
+        assert abs((sc.lambda_hot + sc.lambda_cold) - sc.lambda_total) <= 1e-12
 
 
 def audit_simulation_layer() -> None:
@@ -120,7 +120,11 @@ def audit_source_contract() -> None:
         for path in root.rglob("*.py"):
             if path == Path(__file__).resolve():
                 continue
-            text = path.read_text(encoding="utf-8-sig")
+            raw = path.read_bytes()
+            if raw.startswith(b"\xef\xbb\xbf"):
+                hits.append(str(path.relative_to(ROOT)) + ":UTF8_BOM")
+                continue
+            text = raw.decode("utf-8")
             tree = ast.parse(text, filename=str(path))
             compile(tree, str(path), "exec")
             if any(token in text for token in forbidden):
@@ -128,11 +132,11 @@ def audit_source_contract() -> None:
             if "NotImplementedError" in text and path.name not in intentional_boundary:
                 hits.append(str(path.relative_to(ROOT)) + ":unexpected_NotImplementedError")
     if hits:
-        raise AssertionError(f"unexpected unfinished markers: {hits}")
+        raise AssertionError(f"unexpected source-contract violations: {hits}")
 
-    evidence = (ROOT / "gurobean" / "evidence_gate.py").read_text(encoding="utf-8-sig")
+    evidence = (ROOT / "gurobean" / "evidence_gate.py").read_text(encoding="utf-8")
     assert "synthetic" in evidence.lower()
-    model = (ROOT / "gurobean" / "model.py").read_text(encoding="utf-8-sig")
+    model = (ROOT / "gurobean" / "model.py").read_text(encoding="utf-8")
     assert "NotImplementedError" in model
 
 

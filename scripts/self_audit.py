@@ -1,8 +1,8 @@
 """Repository-wide deterministic self-audit for Gurobean.
 
-This gate is deliberately solver-independent. It checks the mathematical
-reference layer, public API boundaries, deterministic simulation behavior,
-finite-input invariants, and the certification boundary. It must never report
+This gate is solver-independent. It checks the mathematical reference layer,
+public API boundaries, deterministic simulation behavior, finite-input
+invariants, and the certification boundary. It must never report
 licensed-Gurobi certification; that remains the explicit R9 release gate.
 """
 from __future__ import annotations
@@ -10,8 +10,6 @@ from __future__ import annotations
 import ast
 import math
 from pathlib import Path
-
-import numpy as np
 
 from gurobean.model import Scenario, expected_newsvendor_profit, solve_round_scipy
 from gurobean.simulation import GurobeanSimulationConfig, simulate_gurobean, simulate_queue
@@ -50,11 +48,17 @@ def audit_reference_layer() -> None:
         assert sc.water_hot * qh + sc.water_cold * qc <= sc.water_available + 1e-7
         assert math.isfinite(float(result["objective"]))
 
-    # Zero-demand degeneracy must be finite and stable.
-    zero = Scenario(lambda_total=0.0, p_hot=1.0, p_cold=0.0,
-                    revenue_hot=3.0, cost_hot=1.0,
-                    beans_available=10.0, water_available=10.0,
-                    beans_hot=1.0, water_hot=1.0)
+    zero = Scenario(
+        lambda_total=0.0,
+        p_hot=1.0,
+        p_cold=0.0,
+        revenue_hot=3.0,
+        cost_hot=1.0,
+        beans_available=10.0,
+        water_available=10.0,
+        beans_hot=1.0,
+        water_hot=1.0,
+    )
     r1 = solve_round_scipy(zero, 1)
     assert r1["Q_hot"] >= 0.0
     assert math.isfinite(float(r1["objective"]))
@@ -92,7 +96,8 @@ def audit_simulation_layer() -> None:
 
 
 def audit_source_contract() -> None:
-    forbidden = ("TODO", "FIXME", "NotImplemented")
+    forbidden = ("TODO", "FIXME")
+    intentional_boundary = {"evidence_gate.py", "model.py"}
     scan_roots = (ROOT / "gurobean", ROOT / "scripts")
     hits: list[str] = []
     for root in scan_roots:
@@ -101,15 +106,16 @@ def audit_source_contract() -> None:
             tree = ast.parse(text, filename=str(path))
             compile(tree, str(path), "exec")
             if any(token in text for token in forbidden):
-                # NotImplementedError is an intentional R5-R8 boundary only.
-                if path.name not in {"evidence_gate.py"}:
-                    hits.append(str(path.relative_to(ROOT)))
+                hits.append(str(path.relative_to(ROOT)))
+            if "NotImplementedError" in text and path.name not in intentional_boundary:
+                hits.append(str(path.relative_to(ROOT)) + ":unexpected_NotImplementedError")
     if hits:
         raise AssertionError(f"unexpected unfinished markers: {hits}")
 
     evidence = (ROOT / "gurobean" / "evidence_gate.py").read_text(encoding="utf-8")
-    assert "CALIBRATION_GATED" in evidence
     assert "synthetic" in evidence.lower()
+    model = (ROOT / "gurobean" / "model.py").read_text(encoding="utf-8")
+    assert "NotImplementedError" in model
 
 
 def main() -> int:

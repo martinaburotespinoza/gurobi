@@ -35,6 +35,8 @@ def test_invalid_negative_scenario_is_rejected():
         Scenario(lambda_total=-1)
     with pytest.raises(ValueError):
         Scenario(lambda_total=1, p_hot=.8, p_cold=.3)
+    with pytest.raises(ValueError):
+        Scenario(lambda_total=1, p_hot=.7, p_cold=.2)
 
 
 def test_r4_optimizer_handles_tight_coupled_resource_case():

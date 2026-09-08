@@ -2,7 +2,13 @@ import math
 import numpy as np
 import pytest
 
-from gurobean.model import Scenario, expected_newsvendor_gradient, expected_newsvendor_profit, solve_round_scipy
+from gurobean.model import (
+    Scenario,
+    expected_newsvendor_gradient,
+    expected_newsvendor_profit,
+    solve_round1_closed_form,
+    solve_round_scipy,
+)
 
 
 def test_newsvendor_gradient_matches_finite_difference():
@@ -10,6 +16,54 @@ def test_newsvendor_gradient_matches_finite_difference():
     h = 1e-5
     numeric = (expected_newsvendor_profit(q+h, lam, rev, cost, salvage) - expected_newsvendor_profit(q-h, lam, rev, cost, salvage)) / (2*h)
     assert math.isclose(expected_newsvendor_gradient(q, lam, rev, cost, salvage), numeric, rel_tol=1e-7, abs_tol=1e-7)
+
+
+def test_newsvendor_objective_is_concave_on_positive_lambda():
+    lam, rev, cost, salvage = 37.0, 5.0, 1.3, 0.4
+    qs = np.linspace(0.0, 90.0, 181)
+    gradients = np.array([expected_newsvendor_gradient(float(q), lam, rev, cost, salvage) for q in qs])
+    # The derivative of a concave function is non-increasing.
+    assert np.all(np.diff(gradients) <= 1e-10)
+    # With positive revenue margin, curvature is strictly negative away from numerical tails.
+    assert gradients[20] > gradients[120]
+
+
+def test_newsvendor_stationary_point_matches_critical_fractile():
+    lam, rev, cost, salvage = 64.0, 6.0, 1.5, 0.5
+    critical = (rev - cost) / (rev - salvage)
+    expected_q = lam + math.sqrt(lam) * __import__("statistics").NormalDist().inv_cdf(critical)
+    q = expected_q
+    assert abs(expected_newsvendor_gradient(q, lam, rev, cost, salvage)) < 1e-10
+
+
+def test_newsvendor_gradient_monotone_and_boundary_signs():
+    lam, rev, cost, salvage = 25.0, 4.0, 1.0, 0.0
+    assert expected_newsvendor_gradient(0.0, lam, rev, cost, salvage) > 0.0
+    assert expected_newsvendor_gradient(100.0, lam, rev, cost, salvage) < 0.0
+    assert expected_newsvendor_gradient(0.0, lam, rev, cost, salvage) >= expected_newsvendor_gradient(100.0, lam, rev, cost, salvage)
+
+
+def test_lambda_zero_has_exact_linear_economics():
+    assert expected_newsvendor_profit(12.0, 0.0, 4.0, 1.5, 0.25) == 12.0 * (0.25 - 1.5)
+    assert expected_newsvendor_gradient(12.0, 0.0, 4.0, 1.5, 0.25) == 0.25 - 1.5
+    assert expected_newsvendor_profit(12.0, 0.0, 4.0, 1.5, 2.0) == 12.0 * (2.0 - 1.5)
+
+
+def test_round1_closed_form_matches_reference_objective():
+    sc = Scenario(
+        lambda_total=42.0,
+        revenue_hot=4.0,
+        cost_hot=0.0,
+        salvage_hot=0.25,
+        beans_available=100.0,
+        beans_hot=1.0,
+        water_available=100.0,
+        water_hot=1.0,
+    )
+    closed = solve_round1_closed_form(sc)
+    reference = solve_round_scipy(sc, 1)
+    assert math.isclose(closed["objective"], reference["objective"], rel_tol=1e-8, abs_tol=1e-8)
+    assert math.isclose(closed["Q_hot"], reference["Q_hot"], rel_tol=1e-6, abs_tol=1e-6)
 
 
 def test_resource_constraints_are_respected_r2_r4():

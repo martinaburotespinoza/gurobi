@@ -9,6 +9,7 @@
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/favicon.ico", "dest": "/web/favicon.svg" },
     { "src": "/favicon.svg", "dest": "/web/favicon.svg" },
+    { "src": "/capture", "dest": "/web/capture.html" },
     { "src": "/app", "dest": "/api/ui.py" },
     { "src": "/", "dest": "/api/ui.py" }
   ],

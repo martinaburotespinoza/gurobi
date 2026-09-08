@@ -1,4 +1,4 @@
-﻿import inspect
+import inspect
 from pathlib import Path
 import gurobean.model as gm
 
@@ -37,21 +37,11 @@ src = inspect.getsource(gm)
 
 for i, line in enumerate(src.splitlines(), 1):
     if any(x in line.lower() for x in [
-        "scipy",
-        "norm.",
-        "normcdf",
-        "expected_newsvendor",
-        "salvage",
-        "lambda",
-        "revenue",
-        "cost",
+        "scipy", "norm.", "normcdf", "expected_newsvendor", "salvage", "lambda", "revenue", "cost",
     ]):
         print(f"{i:04d}: {line}")
 
-Path("r5_analytic_audit.txt").write_text(
-    src,
-    encoding="utf-8"
-)
+Path("r5_analytic_audit.txt").write_text(src, encoding="utf-8")
 
 print("\nArtefacto generado:")
 print("  r5_analytic_audit.txt")

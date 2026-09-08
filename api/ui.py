@@ -10,27 +10,16 @@ PATCH = r'''<script>
 (function(){
   const originalSolve=window.solve;
   window.solve=async function(){
-    try{
-      if(window.mode==='custom' && document.getElementById('custom_backend')){
-        const b=document.getElementById('custom_backend');
-        if(b.value==='gurobi') b.value='scipy';
-      }
-      return await originalSolve();
-    }catch(e){
+    try{return await originalSolve();}
+    catch(e){
       const n=document.getElementById('note');
-      if(n) n.textContent='Error ejecutando el motor: '+e.message;
+      if(n)n.textContent='Error ejecutando el motor: '+e.message;
       throw e;
     }
   };
-  const originalCompare=window.compare;
   window.compare=async function(){
     const n=document.getElementById('note');
-    if(window.mode==='custom'||window.round>4){
-      if(n) n.textContent='La comparación formal Gurobi ↔ SciPy está disponible para R1–R4 en el entorno certificado local.';
-      return;
-    }
-    if(n) n.textContent='La consola pública ejecuta la referencia SciPy. La certificación Gurobi se realiza con licencia local.';
-    return originalCompare();
+    if(n)n.textContent='La comparación formal Gurobi ↔ SciPy requiere el entorno local con licencia Gurobi. Esta consola pública ejecuta la referencia SciPy y la simulación R5–R8.';
   };
 })();
 </script>'''

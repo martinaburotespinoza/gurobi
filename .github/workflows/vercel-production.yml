@@ -1,0 +1,22 @@
+name: Vercel Production Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_SX9pUgbdxVl9MoaMMoTVDbue
+      VERCEL_PROJECT_ID: prj_97BMIoW2FZ7QO9OBxaqDybkMqall
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Deploy production
+        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"

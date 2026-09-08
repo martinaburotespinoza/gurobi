@@ -19,6 +19,10 @@ sys.path.insert(0, str(ROOT))
 from scripts import r9_end_to_end as r9
 
 PWL_POINTS = r9.R9_PWL_POINTS
+# Backward-compatible public release-gate name retained for the policy test
+# and for tooling that imports the release module. This is the strict exact
+# objective regret gate, not the looser exploratory PWL comparison tolerance.
+OBJ_TOL = r9.STRICT_REGRET_TOL
 STRICT_REGRET_TOL = r9.STRICT_REGRET_TOL
 FEAS_TOL = r9.FEAS_TOL
 REF_TOL = r9.REFERENCE_OBJ_TOL
@@ -73,14 +77,14 @@ def main() -> int:
 
     failures = [x for x in records if not x.reference_ok or not x.gurobi_ok]
     regrets = [x.regret for x in records if x.gurobi_checked]
-    objective_errors = [
-        x.objective_abs_error
+    reference_errors = [
+        x.objective_error
         for x in records
-        if x.gurobi_checked and x.objective_abs_error is not None
+        if x.gurobi_checked and x.objective_error is not None
     ]
 
     artifact = {
-        "schema": "gurobean.r9.release-certification.v5",
+        "schema": "gurobean.r9.release-certification.v6",
         "git_commit": commit,
         "gurobi_version": gurobi_version,
         "cases": r9.CASES,
@@ -95,7 +99,7 @@ def main() -> int:
         "r5_r8_status": "CALIBRATION_GATED",
         "failures": len(failures),
         "max_exact_regret": max(regrets, default=0.0),
-        "max_objective_abs_error": max(objective_errors, default=0.0),
+        "max_reference_objective_error": max(reference_errors, default=0.0),
         "records": [x.__dict__ for x in records],
         "status": "PASS" if len(records) == 400 and not failures else "FAIL",
     }
@@ -109,7 +113,10 @@ def main() -> int:
     print(f"REFINE_POINTS: {list(REFINE_POINTS)}")
     print(f"FAILURES: {len(failures)}")
     print(f"MAX_EXACT_REGRET: {max(regrets, default=0.0):.15g}")
-    print(f"MAX_OBJECTIVE_ABS_ERROR: {max(objective_errors, default=0.0):.15g}")
+    print(
+        f"MAX_REFERENCE_OBJECTIVE_ERROR: "
+        f"{max(reference_errors, default=0.0):.15g}"
+    )
     print("GUROBI_GATE: CHECKED")
     print(f"R9 STATUS: {artifact['status']}")
     print(f"ARTIFACT: {ARTIFACT.name}")

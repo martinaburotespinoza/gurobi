@@ -84,3 +84,62 @@ def test_gurobi_backend_is_optional_and_never_faked():
         import gurobipy  # noqa: F401
     except ImportError:
         pytest.skip("gurobipy not installed in validation environment")
+
+
+def test_gurobi_handles_zero_economic_upper_bound():
+    from gurobean.model import Scenario, solve_gurobi_round
+
+    sc = Scenario(
+        lambda_total=20.0,
+        p_hot=1.0,
+        revenue_hot=1.0,
+        cost_hot=2.0,
+        beans_available=100.0,
+        water_available=100.0,
+        beans_hot=1.0,
+        water_hot=1.0,
+    )
+
+    result = solve_gurobi_round(sc, 3)
+
+    from gurobean.model import expected_newsvendor_profit
+
+    assert result["Q_hot"] == 0.0
+    assert result["Q_cold"] == 0.0
+    expected = expected_newsvendor_profit(
+        0.0,
+        sc.lambda_hot,
+        sc.revenue_hot,
+        sc.cost_hot,
+        sc.salvage_hot,
+    )
+    assert abs(result["objective"] - expected) < 1e-6
+
+
+def test_gurobi_handles_tiny_positive_economic_upper_bound():
+    from gurobean.model import Scenario, solve_gurobi_round
+
+    sc = Scenario(
+        lambda_total=1.0,
+        p_hot=1.0,
+        revenue_hot=1.0,
+        cost_hot=0.999999,
+        beans_available=100.0,
+        water_available=100.0,
+        beans_hot=1.0,
+        water_hot=1.0,
+    )
+
+    result = solve_gurobi_round(sc, 3)
+
+    from gurobean.model import expected_newsvendor_profit
+
+    assert result["Q_hot"] >= 0.0
+    expected = expected_newsvendor_profit(
+        result["Q_hot"],
+        sc.lambda_hot,
+        sc.revenue_hot,
+        sc.cost_hot,
+        sc.salvage_hot,
+    )
+    assert abs(result["objective"] - expected) < 1e-5

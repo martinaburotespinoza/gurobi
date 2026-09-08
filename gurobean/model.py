@@ -367,7 +367,103 @@ def solve_round_scipy(sc: Scenario, round_number: int) -> dict:
     }
 
 
-def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 1001) -> dict:
+
+def _resource_vertices(
+    sc: Scenario,
+    include_cold: bool,
+    hot_hi: float,
+    cold_hi: float,
+) -> list[tuple[float, float]]:
+    """Return feasible vertices of the bounded R1-R4 resource polygon.
+
+    The PWL adapter can otherwise shift a true optimum located at a resource
+    intersection onto a nearby PWL segment. Adding exact resource vertices
+    as breakpoints preserves those economically important points without
+    requiring an enormous uniform grid.
+    """
+    vertices: set[tuple[float, float]] = {
+        (0.0, 0.0),
+        (float(hot_hi), 0.0),
+        (0.0, float(cold_hi)),
+        (float(hot_hi), float(cold_hi)),
+    }
+
+    constraints: list[tuple[float, float, float]] = []
+
+    if np.isfinite(sc.beans_available):
+        constraints.append(
+            (
+                float(sc.beans_hot),
+                float(sc.beans_cold if include_cold else 0.0),
+                float(sc.beans_available),
+            )
+        )
+
+    if np.isfinite(sc.water_available):
+        constraints.append(
+            (
+                float(sc.water_hot),
+                float(sc.water_cold if include_cold else 0.0),
+                float(sc.water_available),
+            )
+        )
+
+    # Intersections of each resource boundary with box boundaries.
+    for a, b, rhs in constraints:
+        if abs(a) > 1e-15:
+            for qc in (0.0, float(cold_hi)):
+                qh = (rhs - b * qc) / a
+                if (
+                    -1e-9 <= qh <= hot_hi + 1e-9
+                    and _feasible(qh, qc, sc)
+                ):
+                    vertices.add(
+                        (
+                            min(max(float(qh), 0.0), float(hot_hi)),
+                            float(qc),
+                        )
+                    )
+
+        if include_cold and abs(b) > 1e-15:
+            for qh in (0.0, float(hot_hi)):
+                qc = (rhs - a * qh) / b
+                if (
+                    -1e-9 <= qc <= cold_hi + 1e-9
+                    and _feasible(qh, qc, sc)
+                ):
+                    vertices.add(
+                        (
+                            float(qh),
+                            min(max(float(qc), 0.0), float(cold_hi)),
+                        )
+                    )
+
+    # Intersections between resource boundaries.
+    if len(constraints) >= 2:
+        a1, b1, r1 = constraints[0]
+        a2, b2, r2 = constraints[1]
+        det = a1 * b2 - a2 * b1
+
+        if abs(det) > 1e-15:
+            qh = (r1 * b2 - r2 * b1) / det
+            qc = (a1 * r2 - a2 * r1) / det
+
+            if (
+                -1e-9 <= qh <= hot_hi + 1e-9
+                and -1e-9 <= qc <= cold_hi + 1e-9
+                and _feasible(qh, qc, sc)
+            ):
+                vertices.add(
+                    (
+                        min(max(float(qh), 0.0), float(hot_hi)),
+                        min(max(float(qc), 0.0), float(cold_hi)),
+                    )
+                )
+
+    return sorted(vertices)
+
+
+def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
     """Build/solve the R1-R4 model in Gurobi using solver-backed PWL objectives.
 
     Gurobi's Python API exposes nonlinear expression helpers but not the Normal
@@ -398,23 +494,141 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 1001) 
     if np.isfinite(sc.water_available):
         m.addConstr(sc.water_hot * qh + sc.water_cold * qc <= sc.water_available, name="water")
 
-    def add_profit_pwl(q, hi, lam, revenue, cost, salvage, name):
-        xs = np.linspace(0.0, hi, max(2, int(pwl_points)))
-        ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
+    resource_vertices = _resource_vertices(
+        sc,
+        include_cold,
+        hot_hi,
+        cold_hi,
+    )
+
+    def add_profit_pwl(q, hi, lam, revenue, cost, salvage, name, critical_points=None):
+        """Add a numerically robust PWL representation of expected profit.
+
+        Gurobi rejects PWL x-breakpoints whose span is below 1e-6. This can
+        occur legitimately when the economic upper bound is zero or tiny
+        (for example, non-positive contribution margin cases). For a fixed
+        zero interval we fix the profit variable directly. For a tiny
+        positive interval we normalize the decision to [0, 1] so the PWL
+        breakpoints remain numerically well separated while preserving the
+        original q decision exactly.
+        """
+        hi = float(hi)
+
+        if hi <= 1e-12:
+            value = expected_newsvendor_profit(
+                0.0, lam, revenue, cost, salvage
+            )
+            return m.addVar(
+                lb=value,
+                ub=value,
+                name=name,
+            )
+
+        points = max(2, int(pwl_points))
+
+        if hi < 1e-5:
+            t = m.addVar(
+                lb=0.0,
+                ub=1.0,
+                name=f"{name}_normalized",
+            )
+            m.addConstr(
+                q == hi * t,
+                name=f"{name}_scale",
+            )
+
+            xs = np.linspace(0.0, 1.0, points)
+            ys = [
+                expected_newsvendor_profit(
+                    float(hi * x),
+                    lam,
+                    revenue,
+                    cost,
+                    salvage,
+                )
+                for x in xs
+            ]
+
+            y_lo, y_hi = min(ys), max(ys)
+            y = m.addVar(
+                lb=y_lo - max(1.0, abs(y_lo) * 1e-9),
+                ub=y_hi + max(1.0, abs(y_hi) * 1e-9),
+                name=name,
+            )
+            m.addGenConstrPWL(
+                t,
+                y,
+                xs.tolist(),
+                ys,
+                name=f"{name}_pwl",
+            )
+            return y
+
+        base_xs = np.linspace(0.0, hi, points)
+
+        extra = [
+            float(x)
+            for x in (critical_points or [])
+            if -1e-12 <= float(x) <= hi + 1e-12
+        ]
+
+        xs = np.asarray(
+            sorted(
+                {
+                    round(float(x), 15)
+                    for x in np.concatenate(
+                        (base_xs, np.asarray(extra, dtype=float))
+                    )
+                    if -1e-12 <= float(x) <= hi + 1e-12
+                }
+            ),
+            dtype=float,
+        )
+
+        xs = np.clip(xs, 0.0, hi)
+
+        if len(xs) < 2 or np.max(np.diff(xs)) <= 0.0:
+            xs = np.asarray([0.0, hi], dtype=float)
+
+        ys = [
+            expected_newsvendor_profit(
+                float(x),
+                lam,
+                revenue,
+                cost,
+                salvage,
+            )
+            for x in xs
+        ]
+
         y_lo, y_hi = min(ys), max(ys)
-        y = m.addVar(lb=y_lo - max(1.0, abs(y_lo) * 1e-9), ub=y_hi + max(1.0, abs(y_hi) * 1e-9), name=name)
-        m.addGenConstrPWL(q, y, xs.tolist(), ys, name=f"{name}_pwl")
+        y = m.addVar(
+            lb=y_lo - max(1.0, abs(y_lo) * 1e-9),
+            ub=y_hi + max(1.0, abs(y_hi) * 1e-9),
+            name=name,
+        )
+        m.addGenConstrPWL(
+            q,
+            y,
+            xs.tolist(),
+            ys,
+            name=f"{name}_pwl",
+        )
         return y
 
     yh = add_profit_pwl(
         qh, hot_hi, sc.lambda_hot, sc.revenue_hot,
-        sc.cost_hot if include_cost else 0.0, sc.salvage_hot, "profit_hot"
+        sc.cost_hot if include_cost else 0.0, sc.salvage_hot,
+        "profit_hot",
+        [v[0] for v in resource_vertices],
     )
     yc = m.addVar(lb=0.0, ub=0.0, name="profit_cold_zero")
     if include_cold:
         yc = add_profit_pwl(
             qc, cold_hi, sc.lambda_cold, sc.revenue_cold,
-            sc.cost_cold if include_cost else 0.0, sc.salvage_cold, "profit_cold"
+            sc.cost_cold if include_cost else 0.0, sc.salvage_cold,
+            "profit_cold",
+            [v[1] for v in resource_vertices],
         )
 
     m.setObjective(yh + yc, gp.GRB.MAXIMIZE)

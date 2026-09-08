@@ -1,0 +1,74 @@
+{
+  "random_cases": 240,
+  "random_passed": 240,
+  "random_failed": 0,
+  "extreme_cases": 6,
+  "extreme_failed": 0,
+  "pwl_points": 20001,
+  "batch_summaries": [
+    {
+      "batch": 1,
+      "seed": 20260907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 5.443819759420876e-06
+    },
+    {
+      "batch": 2,
+      "seed": 20261907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 0.0002017013541291135
+    },
+    {
+      "batch": 3,
+      "seed": 20262907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 9.025878227427693e-05
+    },
+    {
+      "batch": 4,
+      "seed": 20263907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 7.309940798450043e-06
+    },
+    {
+      "batch": 5,
+      "seed": 20264907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 0.0001249815401251908
+    },
+    {
+      "batch": 6,
+      "seed": 20265907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 4.543228840248048e-06
+    },
+    {
+      "batch": 7,
+      "seed": 20266907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 0.0019232436434037936
+    },
+    {
+      "batch": 8,
+      "seed": 20267907,
+      "cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "max_objective_error": 7.753993429560069e-06
+    }
+  ]
+}

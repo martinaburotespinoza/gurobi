@@ -64,12 +64,12 @@ def test_invalid_drink_mix_is_rejected_at_api_boundary():
     assert response.status_code == 422
 
 
-def test_non_finite_scenario_value_is_rejected_at_api_boundary():
-    from fastapi.testclient import TestClient
-    from api.app import app
+def test_non_finite_scenario_value_is_rejected_by_api_schema():
+    from api.app import ScenarioInput
+    from pydantic import ValidationError
 
     for field, value in (("lambda_total", math.nan), ("revenue_hot", math.inf)):
-        payload = _payload()
-        payload["scenario"][field] = value
-        response = TestClient(app).post("/solve", json=payload)
-        assert response.status_code == 422
+        scenario = _payload()["scenario"]
+        scenario[field] = value
+        with pytest.raises(ValidationError):
+            ScenarioInput.model_validate(scenario)

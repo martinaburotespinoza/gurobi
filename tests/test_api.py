@@ -35,7 +35,7 @@ def _payload(round_number=1):
             "warmup_hours": 0,
             "replications": 1,
             "seed": 77,
-            "coordinate_points": 2,
+            "coordinate_points": 3,
         },
     }
 
@@ -57,10 +57,10 @@ def test_metadata_does_not_claim_license_availability():
 
     metadata = TestClient(app).get("/metadata").json()
     assert metadata["rounds"]["implemented"] == [1, 2, 3, 4, 5, 6, 7, 8]
-    assert metadata["rounds"]["calibration_required"] == [5, 6, 7, 8]
-    assert metadata["gurobi_backend"] == "solver-backed-pwl"
+    assert metadata["rounds"]["formal_game_certification_required"] == [5, 6, 7, 8]
+    assert metadata["gurobi_backend"] == "solver-backed-pwl-for-r1-r4"
     assert metadata["gurobi_license_required"] is True
-    assert "license availability" in metadata["note"]
+    assert "formal game parity" in metadata["note"]
 
 
 def test_dynamic_rounds_execute_operationally_without_fake_certification():

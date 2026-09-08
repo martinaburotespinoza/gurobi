@@ -19,6 +19,7 @@ jobs:
       - run: pip install -e '.[test]'
       - run: python -m compileall -q gurobean scripts
       - run: pytest -q
+      - run: python scripts/self_audit.py
       - run: python scripts/r8_math_validation.py
       - run: python scripts/r9_end_to_end.py
 
@@ -33,6 +34,7 @@ jobs:
       - run: pip install -e '.[test]'
       - run: python scripts/validate_all.py
       - run: python scripts/validate_production.py
+      - run: python scripts/self_audit.py
       - run: python scripts/check_gurobi.py
         continue-on-error: true
       - name: Explain Gurobi boundary

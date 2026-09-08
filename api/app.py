@@ -18,23 +18,6 @@ app = FastAPI(title="Gurobean Engine API", version="0.3.0", docs_url="/docs", re
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
-@app.middleware("http")
-async def normalize_vercel_api_path(request, call_next):
-    """Normalize Vercel's /api/* function path to FastAPI's internal routes.
-
-    vercel.json dispatches /api/:path* to the single Python function
-    /api/index.py. Vercel keeps the original /api prefix in the ASGI scope,
-    while the FastAPI application defines routes without that deployment
-    prefix. Strip only the leading /api segment before route matching.
-    """
-    path = request.scope.get("path", "")
-    if path == "/api":
-        request.scope["path"] = "/"
-    elif path.startswith("/api/"):
-        request.scope["path"] = path[4:]
-    return await call_next(request)
-
-
 class ScenarioInput(BaseModel):
     lambda_total: float = Field(ge=0)
     p_hot: float = Field(ge=0, le=1)
@@ -139,6 +122,7 @@ class AskRequest(BaseModel):
 
 
 @app.get("/")
+@app.get("/api/")
 def root():
     frontend = Path(__file__).resolve().parent.parent / "web" / "index.html"
     if not frontend.is_file():
@@ -147,11 +131,13 @@ def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "service": "gurobean-engine", "version": "0.3.0", "ai": "grounded-local"}
 
 
 @app.get("/metadata")
+@app.get("/api/metadata")
 def metadata() -> dict:
     return {
         "rounds": {
@@ -171,11 +157,13 @@ def metadata() -> dict:
 
 
 @app.get("/ai/context")
+@app.get("/api/ai/context")
 def ai_context() -> dict:
     return evidence_context()
 
 
 @app.post("/ai/ask")
+@app.post("/api/ai/ask")
 def ai_ask(request: AskRequest) -> dict:
     try:
         return ask_assistant(request.question)
@@ -184,6 +172,7 @@ def ai_ask(request: AskRequest) -> dict:
 
 
 @app.post("/solve")
+@app.post("/api/solve")
 def solve(request: SolveRequest) -> dict:
     if request.round_number <= 4:
         if request.backend == "simulation":
@@ -209,6 +198,7 @@ def solve(request: SolveRequest) -> dict:
 
 
 @app.post("/evaluate")
+@app.post("/api/evaluate")
 def evaluate(request: EvaluateRequest) -> dict:
     try:
         scenario = Scenario(**request.scenario.model_dump())

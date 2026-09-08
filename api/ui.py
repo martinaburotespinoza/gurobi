@@ -10,30 +10,39 @@ PATCH = r'''<style>
 #liveCapture{position:fixed;right:18px;bottom:18px;z-index:9999;text-decoration:none;background:#173b68;color:#fff;border:1px solid #2c5785;border-radius:999px;padding:11px 15px;font:800 11px system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 10px 30px rgba(23,59,104,.22)}#liveCapture:hover{transform:translateY(-1px)}
 </style><a id="liveCapture" href="/capture">🎥 Capturar juego en vivo</a><script>
 (function(){
-  const originalSolve=window.solve;
-  window.solve=async function(){
-    try{
-      if(window.mode==='custom' && document.getElementById('custom_backend')){
-        const b=document.getElementById('custom_backend');
-        if(b.value==='gurobi') b.value='scipy';
-      }
-      return await originalSolve();
-    }catch(e){
-      const n=document.getElementById('note');
-      if(n)n.textContent='Error ejecutando el motor: '+e.message;
-      throw e;
+  const status=document.getElementById('status');
+  const note=document.getElementById('note');
+  function setStatus(kind,text){
+    if(!status)return;
+    const dot=status.querySelector('.dot');
+    if(dot)dot.className='dot '+(kind||'');
+    status.lastChild.textContent=' '+text;
+  }
+  async function health(){
+    const paths=['/api/health','/health'];
+    let last='';
+    for(const path of paths){
+      try{
+        const r=await fetch(path,{cache:'no-store',headers:{Accept:'application/json'}});
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        const data=await r.json();
+        if(data&&data.status==='ok'){
+          setStatus('ok','Motor conectado');
+          return true;
+        }
+        last='Respuesta inválida';
+      }catch(e){last=e.message||String(e)}
     }
-  };
-  const originalCompare=window.compare;
-  window.compare=async function(){
-    const n=document.getElementById('note');
-    if(window.mode==='custom'||window.round>4){
-      if(n)n.textContent='La comparación formal Gurobi ↔ SciPy está disponible para R1–R4 en el entorno certificado local.';
-      return;
-    }
-    if(n)n.textContent='La consola pública ejecuta la referencia SciPy. La certificación Gurobi se realiza con licencia local.';
-    return originalCompare();
-  };
+    setStatus('bad','Motor desconectado');
+    if(note)note.textContent='No se pudo conectar con el motor. Actualiza la página para reintentar.';
+    return false;
+  }
+  window.gurobeanHealth=health;
+  window.addEventListener('error',function(e){
+    if(note&&e&&e.message)note.textContent='Error de interfaz: '+e.message;
+  });
+  health();
+  setInterval(health,30000);
 })();
 </script>'''
 

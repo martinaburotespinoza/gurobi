@@ -10,13 +10,32 @@ pytestmark = pytest.mark.skipif(not fastapi_available, reason="fastapi not insta
 def _payload(round_number=1):
     return {
         "round_number": round_number,
-        "backend": "scipy",
+        "backend": "scipy" if round_number <= 4 else "simulation",
         "scenario": {
             "lambda_total": 100, "p_hot": 1, "p_cold": 0,
             "revenue_hot": 2, "revenue_cold": 2,
             "cost_hot": 0, "cost_cold": 0,
             "beans_available": 120, "water_available": 120,
             "beans_hot": 1, "beans_cold": 1, "water_hot": 1, "water_cold": 1,
+        },
+        "dynamic": {
+            "arrival_baseline_rate": 20.0,
+            "arrival_reference_rate": 12.0,
+            "reference_markup": 1.0,
+            "markup_min": 0.0,
+            "markup_max": 3.0,
+            "balking_a": 2.0,
+            "balking_b": -0.15,
+            "multi_cup_theta": 0.5,
+            "service_rate_base": 35.0,
+            "service_rate_min": 30.0,
+            "service_rate_max": 50.0,
+            "service_cost_linear": 1.0,
+            "hours": 2,
+            "warmup_hours": 0,
+            "replications": 1,
+            "seed": 77,
+            "coordinate_points": 2,
         },
     }
 
@@ -37,20 +56,24 @@ def test_metadata_does_not_claim_license_availability():
     from api.app import app
 
     metadata = TestClient(app).get("/metadata").json()
-    assert metadata["rounds"]["implemented"] == [1, 2, 3, 4]
+    assert metadata["rounds"]["implemented"] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert metadata["rounds"]["calibration_required"] == [5, 6, 7, 8]
     assert metadata["gurobi_backend"] == "solver-backed-pwl"
     assert metadata["gurobi_license_required"] is True
     assert "license availability" in metadata["note"]
 
 
-def test_calibration_gated_round_is_not_silently_fallback_solved():
+def test_dynamic_rounds_execute_operationally_without_fake_certification():
     from fastapi.testclient import TestClient
     from api.app import app
 
-    response = TestClient(app).post("/solve", json=_payload(round_number=5))
-    assert response.status_code == 501
-    assert "calibration-gated" in response.json()["detail"]
+    for round_number in range(5, 9):
+        response = TestClient(app).post("/solve", json=_payload(round_number=round_number))
+        assert response.status_code == 200, response.text
+        result = response.json()["result"]
+        assert result["operational"] is True
+        assert result["formal_game_certified"] is False
+        assert math.isfinite(float(result["objective"]))
 
 
 def test_invalid_drink_mix_is_rejected_at_api_boundary():

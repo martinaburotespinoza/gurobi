@@ -87,8 +87,10 @@ def expected_newsvendor_profit(Q: float, lam: float, revenue: float, cost: float
     """Exact expected profit under the Normal approximation stated by the Game Guide."""
     if Q < 0:
         return -np.inf
+    if Q == 0.0:
+        return 0.0
     if lam <= 0:
-        return Q * (salvage - cost) if Q > 0 else 0.0
+        return Q * (salvage - cost)
     sigma = sqrt(lam)
     z = (Q - lam) / sigma
     cdf = Phi(z)
@@ -293,6 +295,7 @@ def _resource_vertices(sc: Scenario, include_cold: bool, hot_hi: float, cold_hi:
 
 
 def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
+    """Solve R1-R4 with native Gurobi PWL objectives."""
     if round_number not in (1, 2, 3, 4):
         raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
     try:
@@ -302,66 +305,69 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
     include_cold = round_number in (2, 4)
     include_cost = round_number in (3, 4)
     hot_hi, cold_hi = _round_bounds(sc, include_cold, include_cost)
+    points = max(2, int(pwl_points))
     m = gp.Model(f"gurobean_r{round_number}")
     m.Params.OutputFlag = 0
+    m.Params.FeasibilityTol = 1e-9
+    m.Params.OptimalityTol = 1e-9
+    m.Params.NumericFocus = 2
     qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
     qc = m.addVar(lb=0.0, ub=(cold_hi if include_cold else 0.0), name="Q_cold")
     if np.isfinite(sc.beans_available):
-        m.addConstr(sc.beans_hot*qh + sc.beans_cold*qc <= sc.beans_available, name="beans")
+        m.addConstr(sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available, name="beans")
     if np.isfinite(sc.water_available):
-        m.addConstr(sc.water_hot*qh + sc.water_cold*qc <= sc.water_available, name="water")
+        m.addConstr(sc.water_hot * qh + sc.water_cold * qc <= sc.water_available, name="water")
     resource_vertices = _resource_vertices(sc, include_cold, hot_hi, cold_hi)
-    def add_profit_pwl(q, hi, lam, revenue, cost, salvage, name, critical_points=None):
+    objective_constant = 0.0
+    def set_profit_pwl(var, hi, lam, revenue, cost, salvage, critical_points=None, name="profit"):
+        nonlocal objective_constant
         hi = float(hi)
+        f0 = expected_newsvendor_profit(0.0, lam, revenue, cost, salvage)
         if hi <= 1e-12:
-            value = expected_newsvendor_profit(0.0, lam, revenue, cost, salvage)
-            return m.addVar(lb=value, ub=value, name=name)
-        points = max(2, int(pwl_points))
+            objective_constant += float(f0)
+            return
         if hi < 1e-5:
             t = m.addVar(lb=0.0, ub=1.0, name=f"{name}_normalized")
-            m.addConstr(q == hi*t, name=f"{name}_scale")
+            m.addConstr(var == hi * t, name=f"{name}_scale")
             xs = np.linspace(0.0, 1.0, points)
-            ys = [expected_newsvendor_profit(float(hi*x), lam, revenue, cost, salvage) for x in xs]
-            y_lo, y_hi = min(ys), max(ys)
-            y = m.addVar(lb=y_lo-max(1.0, abs(y_lo)*1e-9), ub=y_hi+max(1.0, abs(y_hi)*1e-9), name=name)
-            m.addGenConstrPWL(t, y, xs.tolist(), ys, name=f"{name}_pwl")
-            return y
+            ys = [expected_newsvendor_profit(float(hi * x), lam, revenue, cost, salvage) for x in xs]
+            m.setPWLObj(t, xs.tolist(), ys)
+            return
         base_xs = np.linspace(0.0, hi, points)
-        extra = [float(x) for x in (critical_points or []) if -1e-12 <= float(x) <= hi+1e-12]
-        xs = np.asarray(sorted({round(float(x), 15) for x in np.concatenate((base_xs, np.asarray(extra, dtype=float))) if -1e-12 <= float(x) <= hi+1e-12}), dtype=float)
+        extra = [float(x) for x in (critical_points or []) if -1e-12 <= float(x) <= hi + 1e-12]
+        xs = np.asarray(sorted({round(float(x), 15) for x in np.concatenate((base_xs, np.asarray(extra, dtype=float))) if -1e-12 <= float(x) <= hi + 1e-12}), dtype=float)
         xs = np.clip(xs, 0.0, hi)
         if len(xs) >= 2:
-            scale = max(1.0, abs(float(hi)))
-            min_dx = max(1.1e-6, 1e-8*scale)
+            scale = max(1.0, abs(hi))
+            min_dx = max(1.1e-6, 1e-8 * scale)
             filtered = [float(xs[0])]
             for x in xs[1:]:
                 x = float(x)
-                if x-filtered[-1] >= min_dx:
+                if x - filtered[-1] >= min_dx:
                     filtered.append(x)
-            if filtered[-1] < float(hi):
-                if float(hi)-filtered[-1] >= min_dx:
-                    filtered.append(float(hi))
+            if filtered[-1] < hi:
+                if hi - filtered[-1] >= min_dx:
+                    filtered.append(hi)
                 elif len(filtered) >= 2:
-                    filtered[-1] = float(hi)
+                    filtered[-1] = hi
             xs = np.asarray(filtered, dtype=float)
         if len(xs) < 2 or np.max(np.diff(xs)) <= 0.0:
             xs = np.asarray([0.0, hi], dtype=float)
         ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
-        y_lo, y_hi = min(ys), max(ys)
-        y = m.addVar(lb=y_lo-max(1.0, abs(y_lo)*1e-9), ub=y_hi+max(1.0, abs(y_hi)*1e-9), name=name)
-        m.addGenConstrPWL(q, y, xs.tolist(), ys, name=f"{name}_pwl")
-        return y
-    yh = add_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, "profit_hot", [v[0] for v in resource_vertices])
-    yc = m.addVar(lb=0.0, ub=0.0, name="profit_cold_zero")
+        m.setPWLObj(var, xs.tolist(), ys)
+    set_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, [v[0] for v in resource_vertices], "profit_hot")
     if include_cold:
-        yc = add_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, "profit_cold", [v[1] for v in resource_vertices])
-    m.setObjective(yh+yc, gp.GRB.MAXIMIZE)
+        set_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, [v[1] for v in resource_vertices], "profit_cold")
+    m.setObjective(objective_constant, gp.GRB.MAXIMIZE)
+    if objective_constant != 0.0:
+        m.ObjCon = float(objective_constant)
     m.optimize()
     if m.Status != gp.GRB.OPTIMAL:
         raise RuntimeError(f"Gurobi did not return OPTIMAL; status={m.Status}")
-    return {"Q_hot": float(qh.X), "Q_cold": float(qc.X) if include_cold else 0.0,
-            "objective": float(m.ObjVal), "method": "gurobi_pwl_validation",
-            "status": int(m.Status), "pwl_points": int(pwl_points)}
+    qh_value = float(qh.X)
+    qc_value = float(qc.X) if include_cold else 0.0
+    exact_objective = _round_objective(sc, include_cold, include_cost, qh_value, qc_value)
+    return {"Q_hot": qh_value, "Q_cold": qc_value, "objective": float(m.ObjVal), "exact_objective": float(exact_objective), "method": "gurobi_native_pwl_objective_validation", "status": int(m.Status), "pwl_points": points}
 
 
 def solve_round(round_number: int, sc: Scenario, backend: str = "scipy") -> dict:

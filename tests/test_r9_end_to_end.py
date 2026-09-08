@@ -8,7 +8,7 @@ from scripts.r9_end_to_end import main
 
 def test_r9_end_to_end_reference_certification(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    assert main() == 0
+    assert main([]) == 0
 
     artifact = json.loads(Path("r9_end_to_end.json").read_text(encoding="utf-8"))
     assert artifact["status"] == "PASS"

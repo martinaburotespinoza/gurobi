@@ -1,13 +1,14 @@
-"""Strict local release gate for R1-R4 with real Gurobi.
-
-This gate is deliberately separate from the historical R9 tolerance.  It
-requires the licensed Gurobi backend, validates the independent continuous
-reference, checks exact objective regret, and reports every failure.
-"""
+"""Strict local release gate for R1-R4 with real Gurobi."""
 from __future__ import annotations
 
 import math
 import random
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import scripts.r9_end_to_end as r9
 from gurobean.model import solve_gurobi_round
@@ -29,7 +30,6 @@ def main() -> int:
     worst = None
     failures = []
     checked = 0
-
     for i in range(r9.CASES):
         sc = r9._scenario(rng, i % 4)
         for rn in r9.ROUNDS:
@@ -41,12 +41,7 @@ def main() -> int:
             regret = abs(exact - ref_obj)
             beans = sc.beans_hot * qh + sc.beans_cold * qc
             water = sc.water_hot * qh + sc.water_cold * qc
-            feasible = (
-                math.isfinite(qh) and math.isfinite(qc) and
-                qh >= -FEAS_TOL and qc >= -FEAS_TOL and
-                beans <= sc.beans_available + FEAS_TOL and
-                water <= sc.water_available + FEAS_TOL
-            )
+            feasible = (math.isfinite(qh) and math.isfinite(qc) and qh >= -FEAS_TOL and qc >= -FEAS_TOL and beans <= sc.beans_available + FEAS_TOL and water <= sc.water_available + FEAS_TOL)
             checked += 1
             record = (regret, i, rn, qh, qc, exact, ref_obj, beans, water)
             if worst is None or regret > worst[0]:
@@ -64,11 +59,7 @@ def main() -> int:
         print(f"WORST_REGRET: {worst[0]:.15g} CASE={worst[1]} ROUND={worst[2]}")
     print(f"FAILURES: {len(failures)}")
     for regret, i, rn, qh, qc, exact, ref_obj, beans, water in failures:
-        print(
-            f"FAIL CASE={i} R{rn} regret={regret:.15g} "
-            f"Q=({qh:.15g},{qc:.15g}) exact={exact:.15g} ref={ref_obj:.15g} "
-            f"beans_slack={beans:.15g} water_slack={water:.15g}"
-        )
+        print(f"FAIL CASE={i} R{rn} regret={regret:.15g} Q=({qh:.15g},{qc:.15g}) exact={exact:.15g} ref={ref_obj:.15g} beans_usage={beans:.15g} water_usage={water:.15g}")
     status = "PASS" if not failures else "FAIL"
     print(f"STRICT_GATE: {status}")
     return 0 if not failures else 1

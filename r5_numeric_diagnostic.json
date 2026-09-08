@@ -1,0 +1,219 @@
+{
+  "schema": "gurobean.r5.2.numeric_diagnostic.v1",
+  "seed": 20260908,
+  "targets": [
+    "random_005_r2",
+    "random_001_r2",
+    "random_011_r4"
+  ],
+  "points": [
+    5001,
+    10001,
+    20001,
+    40001,
+    80001
+  ],
+  "configs": [
+    "baseline",
+    "tight_feasibility",
+    "tight_optimality",
+    "tight_both"
+  ],
+  "results": {
+    "random_005_r2": {
+      "round": 2,
+      "scipy": {
+        "objective": 86.29645425912786,
+        "Q_hot": 21.53525317846574,
+        "Q_cold": 12.895153503781007
+      },
+      "runs": [
+        {
+          "config": "baseline",
+          "pwl_points": 5001,
+          "objective": 86.29632393884634,
+          "Q_hot": 21.487887728055235,
+          "Q_cold": 12.93061566404035,
+          "objective_error": 0.00013032028151371833,
+          "Q_hot_error": 0.04736545041050633,
+          "Q_cold_error": 0.03546216025934257,
+          "seconds": 0.2107450000476092
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 10001,
+          "objective": 86.29400754233657,
+          "Q_hot": 21.32897658143722,
+          "Q_cold": 13.04959125699943,
+          "objective_error": 0.0024467167912831655,
+          "Q_hot_error": 0.20627659702851986,
+          "Q_cold_error": 0.15443775321842246,
+          "seconds": 0.5740746998926625
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 20001,
+          "objective": 86.29640779663785,
+          "Q_hot": 21.56346741973941,
+          "Q_cold": 12.87402971129152,
+          "objective_error": 4.646249000472835e-05,
+          "Q_hot_error": 0.02821424127366967,
+          "Q_cold_error": 0.021123792489486704,
+          "seconds": 2.1592181000160053
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 40001,
+          "objective": 86.29053580623953,
+          "Q_hot": 21.54699492283389,
+          "Q_cold": 12.884186164349002,
+          "objective_error": 0.0059184528883236,
+          "Q_hot_error": 0.011741744368148233,
+          "Q_cold_error": 0.010967339432005119,
+          "seconds": 37.51496050006244
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 80001,
+          "objective": 86.29102331091899,
+          "Q_hot": 21.83768604469611,
+          "Q_cold": 12.668724267343839,
+          "objective_error": 0.005430948208868358,
+          "Q_hot_error": 0.3024328662303688,
+          "Q_cold_error": 0.22642923643716806,
+          "seconds": 162.8316776000429
+        }
+      ]
+    },
+    "random_001_r2": {
+      "round": 2,
+      "scipy": {
+        "objective": 143.8528911224727,
+        "Q_hot": 48.456958913973544,
+        "Q_cold": 26.543892086386034
+      },
+      "runs": [
+        {
+          "config": "baseline",
+          "pwl_points": 5001,
+          "objective": 143.85289085905737,
+          "Q_hot": 48.43971905793616,
+          "Q_cold": 26.55394338205976,
+          "objective_error": 2.6341533043705567e-07,
+          "Q_hot_error": 0.017239856037384982,
+          "Q_cold_error": 0.010051295673726202,
+          "seconds": 0.16182379995007068
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 10001,
+          "objective": 143.85289034010418,
+          "Q_hot": 48.48671141247432,
+          "Q_cold": 26.526545586576827,
+          "objective_error": 7.823685166385985e-07,
+          "Q_hot_error": 0.02975249850077688,
+          "Q_cold_error": 0.017346499809207216,
+          "seconds": 0.4472390000009909
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 20001,
+          "objective": 143.85284919651423,
+          "Q_hot": 48.3645312906751,
+          "Q_cold": 26.584080957090997,
+          "objective_error": 4.192595847030134e-05,
+          "Q_hot_error": 0.09242762329844112,
+          "Q_cold_error": 0.04018887070496291,
+          "seconds": 1.286877500009723
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 40001,
+          "objective": 143.8528557590557,
+          "Q_hot": 48.59244421018518,
+          "Q_cold": 26.4580510978695,
+          "objective_error": 3.536341699827972e-05,
+          "Q_hot_error": 0.13548529621163397,
+          "Q_cold_error": 0.08584098851653366,
+          "seconds": 3.802103199996054
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 80001,
+          "objective": 143.8528911219119,
+          "Q_hot": 48.45616638202451,
+          "Q_cold": 26.544354153640736,
+          "objective_error": 5.607887487713015e-10,
+          "Q_hot_error": 0.0007925319490311722,
+          "Q_cold_error": 0.00046206725470199217,
+          "seconds": 12.989874600083567
+        }
+      ]
+    },
+    "random_011_r4": {
+      "round": 4,
+      "scipy": {
+        "objective": 41.42361467225804,
+        "Q_hot": 38.75239536430858,
+        "Q_cold": 13.413830077408546
+      },
+      "runs": [
+        {
+          "config": "baseline",
+          "pwl_points": 5001,
+          "objective": 41.42361209049219,
+          "Q_hot": 38.756096394446274,
+          "Q_cold": 13.410516333762835,
+          "objective_error": 2.581765848219675e-06,
+          "Q_hot_error": 0.003701030137690964,
+          "Q_cold_error": 0.0033137436457106872,
+          "seconds": 0.11572469992097467
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 10001,
+          "objective": 41.423603805993125,
+          "Q_hot": 38.76290295700085,
+          "Q_cold": 13.404422029589348,
+          "objective_error": 1.0866264915421198e-05,
+          "Q_hot_error": 0.010507592692263756,
+          "Q_cold_error": 0.009408047819198018,
+          "seconds": 0.2864702999358997
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 20001,
+          "objective": 41.4236145784956,
+          "Q_hot": 38.75184229284966,
+          "Q_cold": 13.414325273871267,
+          "objective_error": 9.376243781389348e-08,
+          "Q_hot_error": 0.000553071458924137,
+          "Q_cold_error": 0.0004951964627206706,
+          "seconds": 0.8264215000672266
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 40001,
+          "objective": 41.423388129627206,
+          "Q_hot": 38.76209378366435,
+          "Q_cold": 13.402517559535132,
+          "objective_error": 0.00022654263083410342,
+          "Q_hot_error": 0.009698419355764543,
+          "Q_cold_error": 0.011312517873413697,
+          "seconds": 2.1423063999973238
+        },
+        {
+          "config": "baseline",
+          "pwl_points": 80001,
+          "objective": 41.42360123802503,
+          "Q_hot": 38.75229820261164,
+          "Q_cold": 13.413753932855004,
+          "objective_error": 1.3434233011366814e-05,
+          "Q_hot_error": 9.716169694229393e-05,
+          "Q_cold_error": 7.614455354243432e-05,
+          "seconds": 7.092941999901086
+        }
+      ]
+    }
+  }
+}

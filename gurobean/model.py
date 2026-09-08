@@ -587,6 +587,41 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
 
         xs = np.clip(xs, 0.0, hi)
 
+        # ------------------------------------------------------------------
+        # R5 NUMERICAL HARDENING
+        # Gurobi requires PWL x-breakpoints to be numerically separated.
+        # Adaptive meshes can legitimately create clusters of points around
+        # high-curvature regions or critical points.  After concatenation
+        # and floating-point rounding, those points may become "almost equal"
+        # according to Gurobi even when NumPy considers them distinct.
+        #
+        # Preserve the domain endpoints and keep a deterministic minimum
+        # spacing.  The scale-aware threshold is intentionally conservative:
+        # it is large enough for Gurobi's PWL parser while remaining tiny
+        # relative to normal coffee-production decision ranges.
+        # ------------------------------------------------------------------
+        if len(xs) >= 2:
+            scale = max(1.0, abs(float(hi)))
+            # Gurobi's PWL parser treats x-breakpoints closer than roughly
+            # 1e-6 as numerically identical. Keep a deterministic safety
+            # margin above that threshold.
+            min_dx = max(1.1e-6, 1e-8 * scale)
+
+            filtered = [float(xs[0])]
+            for x in xs[1:]:
+                x = float(x)
+                if x - filtered[-1] >= min_dx:
+                    filtered.append(x)
+
+            # Always preserve the right endpoint when numerically possible.
+            if filtered[-1] < float(hi):
+                if float(hi) - filtered[-1] >= min_dx:
+                    filtered.append(float(hi))
+                elif len(filtered) >= 2:
+                    filtered[-1] = float(hi)
+
+            xs = np.asarray(filtered, dtype=float)
+
         if len(xs) < 2 or np.max(np.diff(xs)) <= 0.0:
             xs = np.asarray([0.0, hi], dtype=float)
 

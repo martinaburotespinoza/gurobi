@@ -81,6 +81,51 @@ def test_r5_rejects_gurobi_backend():
     assert "R5-R8" in response.json()["detail"]
 
 
+def test_r5_simulation_contract():
+    response = client.post(
+        "/solve",
+        json={
+            "round_number": 5,
+            "backend": "simulation",
+            "scenario": _scenario(),
+            "dynamic": {
+                "hours": 2,
+                "replications": 1,
+                "coordinate_points": 3,
+            },
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["operational"] is True
+    assert result["formal_game_certified"] is False
+    assert result["simulation_hours"] == 2
+    assert result["replications"] == 1
+    assert result["coordinate_points"] if "coordinate_points" in result else True
+    assert result["objective"] == result["expected_profit"]
+
+
+def test_evaluate_contract():
+    response = client.post(
+        "/evaluate",
+        json={
+            "round_number": 8,
+            "scenario": _scenario(),
+            "q_hot": 5.0,
+            "q_cold": 5.0,
+            "markup": 1.0,
+            "service_rate": 65.0,
+            "replications": 1,
+            "hours": 2,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["formal_game_certified"] is False
+    assert body["evaluation"]["replications"] == 1
+
+
 def test_invalid_probability_partition_is_rejected():
     scenario = _scenario()
     scenario["p_cold"] = 0.4

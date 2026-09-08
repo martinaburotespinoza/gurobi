@@ -1,15 +1,18 @@
 """Deterministic load/robustness battery for the dynamic R5-R8 simulator.
 
-This battery is intentionally lightweight enough for CI while exercising the
-same 120-hour horizon used by the evaluation protocol. It is not game-parity
-evidence; it is a software robustness gate against non-finite outputs,
-resource violations, invalid metrics and loss of reproducibility.
+This battery is intentionally CI-safe while exercising the same 120-hour
+horizon used by the evaluation protocol. It is not game-parity evidence; it is
+a software robustness gate against non-finite outputs, resource violations,
+invalid metrics, saturation failures and loss of reproducibility.
 """
 
 import math
 
+import numpy as np
+
 from gurobean import Scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
+from gurobean.simulation import GurobeanSimulationConfig, simulate_gurobean
 
 
 def _scenario(lambda_total: float, hot: float, cold: float) -> Scenario:
@@ -67,6 +70,8 @@ def test_120h_r5_r8_load_battery_is_finite_and_reproducible():
             assert first == second
             assert first["operational"] is True
             assert first["formal_game_certified"] is False
+            assert first["simulation_hours"] == 120
+            assert first["replications"] == 2
             for key in ("objective", "Q_hot", "Q_cold", "markup", "service_rate"):
                 assert math.isfinite(float(first[key]))
             for key in ("mean_queue", "mean_wait_minutes", "utilization"):
@@ -86,3 +91,45 @@ def test_120h_r8_load_battery_exercises_service_cost():
     assert result["simulation_hours"] == 120
     assert result["service_cost_per_hour"] >= 0.0
     assert math.isfinite(float(result["service_cost_per_hour"]))
+
+
+def test_120h_extreme_saturation_battery_remains_finite():
+    """Exercise high demand, slow service and large orders without crashing."""
+    configs = (
+        GurobeanSimulationConfig(
+            hours=120, seed=9101, lambda_rate=120.0, mu_rate=35.0,
+            p_hot=0.5, p_cold=0.5, brew_hot_per_hour=80.0,
+            brew_cold_per_hour=80.0, revenue_hot=3.0, revenue_cold=3.5,
+            brew_cost_hot=1.0, brew_cost_cold=1.2,
+        ),
+        GurobeanSimulationConfig(
+            hours=120, seed=9102, lambda_rate=180.0, mu_rate=55.0,
+            p_hot=0.8, p_cold=0.2, brew_hot_per_hour=120.0,
+            brew_cold_per_hour=40.0, revenue_hot=3.0, revenue_cold=3.5,
+            brew_cost_hot=1.0, brew_cost_cold=1.2,
+            order_size_sampler=lambda rng: int(1 + rng.poisson(2.0)),
+        ),
+        GurobeanSimulationConfig(
+            hours=120, seed=9103, lambda_rate=250.0, mu_rate=90.0,
+            p_hot=0.2, p_cold=0.8, brew_hot_per_hour=100.0,
+            brew_cold_per_hour=180.0, revenue_hot=3.0, revenue_cold=3.5,
+            brew_cost_hot=1.0, brew_cost_cold=1.2,
+            stay_probability=lambda q: 1.0 / (1.0 + np.exp(-np.clip(2.0 - 0.08 * q, -40, 40))),
+            order_size_sampler=lambda rng: int(1 + rng.poisson(1.5)),
+        ),
+    )
+    for config in configs:
+        first, econ = simulate_gurobean(config)
+        second, econ2 = simulate_gurobean(config)
+        assert first == second
+        assert econ == econ2
+        assert first.hours == 120
+        assert first.arrivals >= 0
+        assert first.served >= 0
+        assert first.lost >= 0
+        assert 0.0 <= first.utilization <= 1.0 + 1e-12
+        assert first.mean_queue >= 0.0 and math.isfinite(first.mean_queue)
+        assert first.mean_wait >= 0.0 and math.isfinite(first.mean_wait)
+        assert math.isfinite(float(econ["profit"]))
+        assert econ["served_cups"] >= 0
+        assert econ["lost_customers"] >= 0

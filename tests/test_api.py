@@ -1,4 +1,6 @@
 import importlib.util
+import math
+
 import pytest
 
 fastapi_available = importlib.util.find_spec("fastapi") is not None
@@ -60,3 +62,14 @@ def test_invalid_drink_mix_is_rejected_at_api_boundary():
     payload["scenario"]["p_cold"] = 0.3
     response = TestClient(app).post("/solve", json=payload)
     assert response.status_code == 422
+
+
+def test_non_finite_scenario_value_is_rejected_at_api_boundary():
+    from fastapi.testclient import TestClient
+    from api.app import app
+
+    for field, value in (("lambda_total", math.nan), ("revenue_hot", math.inf)):
+        payload = _payload()
+        payload["scenario"][field] = value
+        response = TestClient(app).post("/solve", json=payload)
+        assert response.status_code == 422

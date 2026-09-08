@@ -53,17 +53,13 @@ def default_parity_cases(seed: int = 20260907, count: int = 24) -> list[ParityCa
 
     for i in range(count):
         round_number = (i % 4) + 1
-
         lam = float(rng.uniform(1.0, 80.0))
         p_hot = 1.0 if round_number == 1 else float(rng.uniform(0.35, 0.85))
         p_cold = 0.0 if round_number == 1 else 1.0 - p_hot
-
         revenue_hot = float(rng.uniform(1.0, 6.0))
         revenue_cold = float(rng.uniform(1.0, 6.0))
-
         cost_hot = 0.0 if round_number < 3 else float(rng.uniform(0.1, 2.0))
         cost_cold = 0.0 if round_number < 3 else float(rng.uniform(0.1, 2.0))
-
         beans = float(rng.uniform(35.0, 110.0))
         water = float(rng.uniform(40.0, 140.0))
 
@@ -81,17 +77,9 @@ def default_parity_cases(seed: int = 20260907, count: int = 24) -> list[ParityCa
                     beans_available=beans,
                     water_available=water,
                     beans_hot=float(rng.uniform(0.5, 1.5)),
-                    beans_cold=(
-                        float(rng.uniform(0.5, 1.5))
-                        if round_number >= 2
-                        else 0.0
-                    ),
+                    beans_cold=(float(rng.uniform(0.5, 1.5)) if round_number >= 2 else 0.0),
                     water_hot=float(rng.uniform(0.5, 2.0)),
-                    water_cold=(
-                        float(rng.uniform(0.5, 2.0))
-                        if round_number >= 2
-                        else 0.0
-                    ),
+                    water_cold=(float(rng.uniform(0.5, 2.0)) if round_number >= 2 else 0.0),
                 ),
                 label=f"random_{i:03d}_r{round_number}",
             )
@@ -108,23 +96,12 @@ def _scenario_feasible(
     tolerance: float = 1e-7,
 ) -> bool:
     """Check the physical/resource feasibility of a candidate solution."""
-
     if q_hot < -tolerance or q_cold < -tolerance:
         return False
-
     if round_number == 1:
         q_cold = 0.0
-
-    beans_used = (
-        q_hot * scenario.beans_hot
-        + q_cold * scenario.beans_cold
-    )
-
-    water_used = (
-        q_hot * scenario.water_hot
-        + q_cold * scenario.water_cold
-    )
-
+    beans_used = q_hot * scenario.beans_hot + q_cold * scenario.beans_cold
+    water_used = q_hot * scenario.water_hot + q_cold * scenario.water_cold
     return (
         beans_used <= scenario.beans_available + tolerance
         and water_used <= scenario.water_available + tolerance
@@ -138,24 +115,9 @@ def run_parity_suite(
     objective_tolerance: float = 2e-3,
     quantity_tolerance: float = 2e-2,
 ) -> list[ParityResult]:
-    """Compare the analytical/SciPy reference against the Gurobi adapter.
-
-    Validation hierarchy:
-
-    1. Objective parity.
-    2. Gurobi feasibility.
-    3. Decision-variable parity only when quantities are sufficiently close.
-
-    When objective parity is excellent but quantities differ, the result is
-    classified as ``passed_alternative_optimum`` rather than incorrectly
-    declaring a mathematical failure.
-
-    If Gurobi is unavailable, no fake solver result is synthesized.
-    """
-
+    """Compare the analytical/SciPy reference against the Gurobi adapter."""
     if pwl_points < 101:
         raise ValueError("pwl_points must be >= 101")
-
     if objective_tolerance <= 0 or quantity_tolerance <= 0:
         raise ValueError("tolerances must be > 0")
 
@@ -164,28 +126,11 @@ def run_parity_suite(
 
     for case in cases:
         ref = solve_round_scipy(case.scenario, case.round_number)
-
         try:
-            got = solve_gurobi_round(
-                case.scenario,
-                case.round_number,
-                pwl_points=pwl_points,
-            )
+            got = solve_gurobi_round(case.scenario, case.round_number, pwl_points=pwl_points)
         except RuntimeError as exc:
             if "gurobipy is not installed" in str(exc):
-                results.append(
-                    ParityResult(
-                        case.label,
-                        case.round_number,
-                        False,
-                        float(ref["objective"]),
-                        None,
-                        None,
-                        None,
-                        None,
-                        "skipped_gurobi_unavailable",
-                    )
-                )
+                results.append(ParityResult(case.label, case.round_number, False, float(ref["objective"]), None, None, None, None, "skipped_gurobi_unavailable"))
                 continue
             raise
 
@@ -194,42 +139,19 @@ def run_parity_suite(
         obj_err = abs(scipy_objective - gurobi_objective)
         qh_err = abs(float(ref["Q_hot"]) - float(got["Q_hot"]))
         qc_err = abs(float(ref["Q_cold"]) - float(got["Q_cold"]))
-
-        feasible = _scenario_feasible(
-            case.scenario,
-            case.round_number,
-            float(got["Q_hot"]),
-            float(got["Q_cold"]),
-        )
-
+        feasible = _scenario_feasible(case.scenario, case.round_number, float(got["Q_hot"]), float(got["Q_cold"]))
         objective_ok = obj_err <= objective_tolerance
         quantities_ok = qh_err <= quantity_tolerance and qc_err <= quantity_tolerance
 
         if not feasible:
-            status = "gurobi_infeasible"
-            passed = False
+            status, passed = "gurobi_infeasible", False
         elif not objective_ok:
-            status = "objective_mismatch"
-            passed = False
+            status, passed = "objective_mismatch", False
         elif quantities_ok:
-            status = "passed_exact"
-            passed = True
+            status, passed = "passed_exact", True
         else:
-            status = "passed_alternative_optimum"
-            passed = True
+            status, passed = "passed_alternative_optimum", True
 
-        results.append(
-            ParityResult(
-                case.label,
-                case.round_number,
-                passed,
-                scipy_objective,
-                gurobi_objective,
-                obj_err,
-                qh_err,
-                qc_err,
-                status,
-            )
-        )
+        results.append(ParityResult(case.label, case.round_number, passed, scipy_objective, gurobi_objective, obj_err, qh_err, qc_err, status))
 
     return results

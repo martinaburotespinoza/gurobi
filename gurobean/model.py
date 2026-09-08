@@ -358,7 +358,8 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
     set_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, [v[0] for v in resource_vertices], "profit_hot")
     if include_cold:
         set_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, [v[1] for v in resource_vertices], "profit_cold")
-    m.setObjective(objective_constant, gp.GRB.MAXIMIZE)
+    # Do not call setObjective() here: it would replace the native PWL objective
+    # terms installed above. ObjCon is the additive constant for degenerate domains.
     if objective_constant != 0.0:
         m.ObjCon = float(objective_constant)
     m.optimize()
@@ -386,3 +387,15 @@ def solve_round(round_number: int, sc: Scenario, backend: str = "scipy") -> dict
 
 def solve_gurobi_r1(sc: Scenario):
     return solve_gurobi_round(sc, 1)
+
+
+def solve_reference_round(sc: Scenario, round_number: int | None = None) -> dict:
+    """Stable analytic reference for the release/certification harness."""
+    if round_number is None:
+        round_number = 1
+    if round_number not in (1, 2, 3, 4):
+        raise ValueError("reference currently covers rounds 1-4 only")
+    result = solve_round_scipy(sc, round_number)
+    qh = float(result["Q_hot"])
+    qc = float(result["Q_cold"])
+    return {"q": qh, "q_cold": qc, "objective": float(_round_objective(sc, round_number in (2, 4), round_number in (3, 4), qh, qc)), "success": True, "method": result.get("method", "scipy_reference")}

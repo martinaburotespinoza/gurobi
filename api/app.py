@@ -4,11 +4,14 @@ from math import isfinite
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
+from gurobean.assistant import ask as ask_assistant, evidence_context
 
 app = FastAPI(title="Gurobean Engine API", version="0.2.6", docs_url="/docs", redoc_url="/redoc")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
 class ScenarioInput(BaseModel):
@@ -49,9 +52,13 @@ class SolveRequest(BaseModel):
     backend: Literal["scipy", "gurobi", "closed_form"] = "scipy"
 
 
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "gurobean-engine", "version": "0.2.6"}
+    return {"status": "ok", "service": "gurobean-engine", "version": "0.2.6", "ai": "grounded-local"}
 
 
 @app.get("/metadata")
@@ -61,8 +68,22 @@ def metadata() -> dict:
         "backends": ["scipy", "gurobi", "closed_form"],
         "gurobi_backend": "solver-backed-pwl",
         "gurobi_license_required": True,
+        "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True},
         "note": "R1-R4 Gurobi adapter uses solver-backed PWL validation of the analytical Normal-newsvendor objective; API metadata never claims license availability.",
     }
+
+
+@app.get("/ai/context")
+def ai_context() -> dict:
+    return evidence_context()
+
+
+@app.post("/ai/ask")
+def ai_ask(request: AskRequest) -> dict:
+    try:
+        return ask_assistant(request.question)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/solve")

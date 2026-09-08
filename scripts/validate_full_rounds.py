@@ -34,9 +34,9 @@ def main() -> int:
         service_rate_min=35.0,
         service_rate_max=60.0,
         service_cost_linear=1.0,
-        hours=12,
+        hours=120,
         warmup_hours=0,
-        replications=1,
+        replications=2,
         seed=123,
         coordinate_points=3,
     )
@@ -46,7 +46,12 @@ def main() -> int:
         result = solve_dynamic_round(sc, round_number, params)
         assert result["operational"] is True
         assert result["formal_game_certified"] is False
+        assert result["simulation_hours"] == 120
+        assert result["replications"] == 2
         assert math.isfinite(result["objective"])
+        assert result["Q_hot"] >= 0 and result["Q_cold"] >= 0
+        assert result["markup"] >= 0
+        assert result["service_rate"] > 0
         print(
             f"R{round_number}: PASS | Q_hot={result['Q_hot']:.4f} "
             f"Q_cold={result['Q_cold']:.4f} markup={result['markup']:.4f} "

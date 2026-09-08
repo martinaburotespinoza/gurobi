@@ -1,0 +1,1035 @@
+{
+  "schema": "gurobean.r6.3.metamorphic.v1",
+  "seed": 20260908,
+  "pwl_points": 5001,
+  "cases": [
+    {
+      "type": "resource_relaxation",
+      "case": 0,
+      "base": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.52582119939788,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 22.787668113152144,
+        "Q_cold": 114.75523665514453,
+        "objective": 125.17452087906258,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 1,
+      "base": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 0.0,
+        "Q_cold": 50.438140967752865,
+        "objective": 139.60616231637013,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 2,
+      "base": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 3,
+      "base": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 4,
+      "base": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921789,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 43.662083044614015,
+        "Q_cold": 79.02891048519622,
+        "objective": 261.76283720424465,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 5,
+      "base": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 6,
+      "base": {
+        "Q_hot": 15.69396892726713,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 21.018561350198883,
+        "Q_cold": 23.298059291083323,
+        "objective": 70.90297248224121,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 7,
+      "base": {
+        "Q_hot": 13.60242547528228,
+        "Q_cold": 74.71111852158796,
+        "objective": 193.66667952740903,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 35.216606569010786,
+        "Q_cold": 76.96518026176517,
+        "objective": 236.52228839123092,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 8,
+      "base": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 9,
+      "base": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 10,
+      "base": {
+        "Q_hot": 28.1232535816788,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 33.76230908948267,
+        "Q_cold": 16.231140855632912,
+        "objective": 121.2606039163334,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_relaxation",
+      "case": 11,
+      "base": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "relaxed": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 0,
+      "base": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.52582119939788,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 19.500719681850008,
+        "Q_cold": 39.38116281743602,
+        "objective": 90.65505816624459,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 1,
+      "base": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 77.6169671733422,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 2,
+      "base": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 35.96259848435431,
+        "Q_cold": 23.495823752765556,
+        "objective": 87.8098793531799,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 3,
+      "base": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 43.83037508343998,
+        "Q_cold": 16.666238752692387,
+        "objective": 73.59407600280973,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 4,
+      "base": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921789,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 31.991230748976122,
+        "Q_cold": 63.29813521275073,
+        "objective": 191.9597048430639,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 5,
+      "base": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 11.841290740908661,
+        "Q_cold": 34.436331705645884,
+        "objective": 57.43932840868791,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 6,
+      "base": {
+        "Q_hot": 15.69396892726713,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 15.721899113062415,
+        "Q_cold": 16.76936431847975,
+        "objective": 48.100700190339204,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 7,
+      "base": {
+        "Q_hot": 13.60242547528228,
+        "Q_cold": 74.71111852158796,
+        "objective": 193.66667952740903,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 14.884296994945423,
+        "Q_cold": 71.67353625667249,
+        "objective": 149.97748255047767,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 8,
+      "base": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 25.050447012858005,
+        "Q_cold": 17.483530451772012,
+        "objective": 45.88958256535957,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 9,
+      "base": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 17.355752470335098,
+        "Q_cold": 46.08242904366654,
+        "objective": 63.460818988317705,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 10,
+      "base": {
+        "Q_hot": 28.1232535816788,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 28.687268332951593,
+        "Q_cold": 2.852133011303037,
+        "objective": 80.20744612542154,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "cost_increase",
+      "case": 11,
+      "base": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "expensive": {
+        "Q_hot": 12.74628969754419,
+        "Q_cold": 34.00317460317461,
+        "objective": 32.50754869109075,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 0,
+      "base": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.52582119939788,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 23.24492419818804,
+        "Q_cold": 71.23097664062247,
+        "objective": 149.34817744301176,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 1,
+      "base": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 111.24158865672615,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 2,
+      "base": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 40.17383084795213,
+        "Q_cold": 26.556133973919135,
+        "objective": 146.3059964901817,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 3,
+      "base": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 48.447987153177294,
+        "Q_cold": 19.572316072558678,
+        "objective": 134.00505708617942,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 4,
+      "base": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921789,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 31.233387323985013,
+        "Q_cold": 64.45485043987802,
+        "objective": 286.0908483769068,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 5,
+      "base": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 14.988775314039486,
+        "Q_cold": 41.975192459920834,
+        "objective": 103.3259570824511,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 6,
+      "base": {
+        "Q_hot": 15.69396892726713,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 15.617794920409027,
+        "Q_cold": 16.875728166857744,
+        "objective": 79.50539761423106,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 7,
+      "base": {
+        "Q_hot": 13.60242547528228,
+        "Q_cold": 74.71111852158796,
+        "objective": 193.66667952740903,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 13.864184160606225,
+        "Q_cold": 74.09084298848575,
+        "objective": 235.4016260490022,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 8,
+      "base": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 29.715213823262076,
+        "Q_cold": 21.625955083257868,
+        "objective": 88.4857854926796,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 9,
+      "base": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 20.468863508518737,
+        "Q_cold": 54.8895089491778,
+        "objective": 126.99962469171194,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 10,
+      "base": {
+        "Q_hot": 28.1232535816788,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 26.99711071440395,
+        "Q_cold": 5.031790050303611,
+        "objective": 111.48393860167121,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "revenue_increase",
+      "case": 11,
+      "base": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "better": {
+        "Q_hot": 15.482209711837239,
+        "Q_cold": 40.794636479325,
+        "objective": 80.61188806498933,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 0,
+      "base": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.52582119939788,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.5258211993979,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 1,
+      "base": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 2,
+      "base": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 3,
+      "base": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 4,
+      "base": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921789,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921788,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 5,
+      "base": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 6,
+      "base": {
+        "Q_hot": 15.69396892726713,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 15.693968927267129,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 7,
+      "base": {
+        "Q_hot": 13.60242547528228,
+        "Q_cold": 74.71111852158796,
+        "objective": 193.66667952740903,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 13.728791737162807,
+        "Q_cold": 74.41167516077999,
+        "objective": 193.67397872618568,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 8,
+      "base": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 9,
+      "base": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 10,
+      "base": {
+        "Q_hot": 28.1232535816788,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 28.123253581678792,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "resource_scale_invariance",
+      "case": 11,
+      "base": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "scaled": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 0,
+      "base": {
+        "Q_hot": 22.787668113152233,
+        "Q_cold": 71.52582119939788,
+        "objective": 123.52197385932521,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 71.57785259212295,
+        "Q_cold": 22.724321192629514,
+        "objective": 123.5237486315271,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 1,
+      "base": {
+        "Q_hot": 0.0,
+        "Q_cold": 33.62542731183524,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 33.62542731183524,
+        "Q_cold": 0.0,
+        "objective": 94.42968082925981,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 2,
+      "base": {
+        "Q_hot": 39.35643969581395,
+        "Q_cold": 26.20234588256614,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 26.20234588256614,
+        "Q_cold": 39.35643969581395,
+        "objective": 118.96618147215341,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 3,
+      "base": {
+        "Q_hot": 47.63051882339678,
+        "Q_cold": 18.969456558710025,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 18.969456558710025,
+        "Q_cold": 47.63051882339678,
+        "objective": 105.30022694388454,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 4,
+      "base": {
+        "Q_hot": 31.384305292468554,
+        "Q_cold": 64.22450059921789,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 64.22450059921789,
+        "Q_cold": 31.384305292468554,
+        "objective": 239.6847092867006,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 5,
+      "base": {
+        "Q_hot": 14.48105900629517,
+        "Q_cold": 41.50591325388009,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 41.50591325388009,
+        "Q_cold": 14.48105900629517,
+        "objective": 82.50741509555014,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 6,
+      "base": {
+        "Q_hot": 15.69396892726713,
+        "Q_cold": 16.797900748871076,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 16.797900748871076,
+        "Q_cold": 15.69396892726713,
+        "objective": 64.34649668191008,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 7,
+      "base": {
+        "Q_hot": 13.60242547528228,
+        "Q_cold": 74.71111852158796,
+        "objective": 193.66667952740903,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 74.2833422918623,
+        "Q_cold": 13.782948706540173,
+        "objective": 193.6739719934507,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 8,
+      "base": {
+        "Q_hot": 29.240723594711888,
+        "Q_cold": 20.90267350035233,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 20.90267350035233,
+        "Q_cold": 29.240723594711888,
+        "objective": 68.8603502459061,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 9,
+      "base": {
+        "Q_hot": 20.06380765141542,
+        "Q_cold": 53.98238552945142,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 53.98238552945142,
+        "Q_cold": 20.06380765141542,
+        "objective": 97.4381867609587,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 10,
+      "base": {
+        "Q_hot": 28.1232535816788,
+        "Q_cold": 3.579496370330047,
+        "objective": 96.01857431028361,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 3.594266113144179,
+        "Q_cold": 28.11180077378534,
+        "objective": 96.01859524348978,
+        "status": 2
+      },
+      "pass": true
+    },
+    {
+      "type": "hot_cold_symmetry",
+      "case": 11,
+      "base": {
+        "Q_hot": 14.980266083083087,
+        "Q_cold": 39.66021433640155,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "swapped": {
+        "Q_hot": 39.66021433640155,
+        "Q_cold": 14.980266083083087,
+        "objective": 57.73620890787237,
+        "status": 2
+      },
+      "pass": true
+    }
+  ],
+  "failures": [],
+  "summary": {
+    "scenarios": 12,
+    "metamorphic_tests": 5,
+    "total_checks": 60,
+    "failures": 0,
+    "status": "PASS"
+  }
+}

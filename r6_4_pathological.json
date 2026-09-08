@@ -1,0 +1,110 @@
+{
+  "round": "R6.4",
+  "cases": [
+    {
+      "name": "zero_lambda",
+      "status": "ok",
+      "Q_hot": 0.0,
+      "Q_cold": 0.0,
+      "objective": -0.0,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "tiny_lambda",
+      "status": "ok",
+      "Q_hot": 0.000510141824564,
+      "Q_cold": 0.00050821155284,
+      "objective": -0.0008681814337383913,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "huge_lambda",
+      "status": "ok",
+      "Q_hot": 600543.6681746457,
+      "Q_cold": 400513.69164177484,
+      "objective": 2078864.0832219338,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "zero_revenue",
+      "status": "ok",
+      "Q_hot": 0.0,
+      "Q_cold": 0.0,
+      "objective": -0.0,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "zero_cost",
+      "status": "expected_unbounded",
+      "error": "ValueError('Hot-coffee decision is unbounded under the supplied R2-R4 inputs')",
+      "expected": true
+    },
+    {
+      "name": "zero_salvage",
+      "status": "ok",
+      "Q_hot": 78.09402953164286,
+      "Q_cold": 34.60974934503209,
+      "objective": 213.6619619808923,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "salvage_equals_revenue",
+      "status": "ok",
+      "Q_hot": 0.0,
+      "Q_cold": 0.0,
+      "objective": -0.0,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "extreme_cost",
+      "status": "ok",
+      "Q_hot": 0.0,
+      "Q_cold": 0.0,
+      "objective": -4.4474712901233784e-12,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "extreme_revenue",
+      "status": "expected_unbounded",
+      "error": "ValueError('Hot-coffee decision is unbounded under the supplied R2-R4 inputs')",
+      "expected": true
+    },
+    {
+      "name": "tight_resources",
+      "status": "ok",
+      "Q_hot": 1.0,
+      "Q_cold": 0.0,
+      "objective": 2.5,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "huge_resources",
+      "status": "ok",
+      "Q_hot": 56.84070349656623,
+      "Q_cold": 57.03187912822036,
+      "objective": 220.3986766218885,
+      "finite": true,
+      "nonnegative": true
+    },
+    {
+      "name": "highly_asymmetric",
+      "status": "ok",
+      "Q_hot": 1134.6396480485585,
+      "Q_cold": 0.0,
+      "objective": 99998.75824619293,
+      "finite": true,
+      "nonnegative": true
+    }
+  ],
+  "failures": [],
+  "case_count": 12,
+  "failure_count": 0
+}

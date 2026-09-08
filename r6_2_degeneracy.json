@@ -1,0 +1,102 @@
+{
+  "schema": "gurobean.r6.2.degeneracy.v1",
+  "pwl_points": 5001,
+  "cases": {
+    "r1_zero_demand": {
+      "round": 1,
+      "Q_hot": 0.0,
+      "Q_cold": 0.0,
+      "objective": -0.0,
+      "beans_used": 0.0,
+      "beans_slack": 100.0,
+      "water_used": 0.0,
+      "water_slack": Infinity,
+      "active_constraints": {
+        "hot_nonnegative": true,
+        "cold_nonnegative": true,
+        "beans": false,
+        "water": false
+      },
+      "feasible": true,
+      "status": 2
+    },
+    "r1_bean_bottleneck": {
+      "round": 1,
+      "Q_hot": 25.0,
+      "Q_cold": 0.0,
+      "objective": 50.0,
+      "beans_used": 25.0,
+      "beans_slack": 0.0,
+      "water_used": 0.0,
+      "water_slack": Infinity,
+      "active_constraints": {
+        "hot_nonnegative": false,
+        "cold_nonnegative": true,
+        "beans": true,
+        "water": false
+      },
+      "feasible": true,
+      "status": 2
+    },
+    "r2_hot_only": {
+      "round": 2,
+      "Q_hot": 40.0,
+      "Q_cold": 0.0,
+      "objective": 99.99999999609108,
+      "beans_used": 40.0,
+      "beans_slack": 0.0,
+      "water_used": 40.0,
+      "water_slack": 0.0,
+      "active_constraints": {
+        "hot_nonnegative": false,
+        "cold_nonnegative": true,
+        "beans": true,
+        "water": true
+      },
+      "feasible": true,
+      "status": 2
+    },
+    "r2_symmetric": {
+      "round": 2,
+      "Q_hot": 25.0,
+      "Q_cold": 25.0,
+      "objective": 99.92507843155792,
+      "beans_used": 50.0,
+      "beans_slack": 0.0,
+      "water_used": 50.0,
+      "water_slack": 0.0,
+      "active_constraints": {
+        "hot_nonnegative": false,
+        "cold_nonnegative": false,
+        "beans": true,
+        "water": true
+      },
+      "feasible": true,
+      "status": 2
+    },
+    "r4_dual_bottleneck": {
+      "round": 4,
+      "Q_hot": 30.323999999999998,
+      "Q_cold": 29.676000000000002,
+      "objective": 155.99941218992356,
+      "beans_used": 60.0,
+      "beans_slack": 0.0,
+      "water_used": 60.0,
+      "water_slack": 0.0,
+      "active_constraints": {
+        "hot_nonnegative": false,
+        "cold_nonnegative": false,
+        "beans": true,
+        "water": true
+      },
+      "feasible": true,
+      "status": 2
+    }
+  },
+  "failures": [],
+  "summary": {
+    "cases": 5,
+    "failures": 0,
+    "status": "PASS"
+  }
+}

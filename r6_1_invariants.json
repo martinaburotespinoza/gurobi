@@ -1,0 +1,73 @@
+{
+  "schema": "gurobean.r6.1.invariants.v1",
+  "pwl_points": 5001,
+  "analytic": {
+    "base": {
+      "objective": 37.47686747797984,
+      "gradient": 0.5
+    },
+    "low_q": {
+      "objective": 9.999998702403605,
+      "gradient": 0.999998949282022
+    },
+    "high_q": {
+      "objective": 39.999999999878696,
+      "gradient": 1.269814253745949e-10
+    },
+    "cost": {
+      "objective": 58.953734955959675,
+      "gradient": 0.6
+    },
+    "salvage": {
+      "objective": 59.458361460363705,
+      "gradient": 0.7
+    }
+  },
+  "gurobi": {
+    "r1_base": {
+      "round": 1,
+      "Q_hot": 97.78,
+      "Q_cold": 0.0,
+      "objective": 80.0,
+      "beans_used": 97.78,
+      "water_used": 0.0,
+      "feasible": true,
+      "status": 2
+    },
+    "r2_balanced": {
+      "round": 2,
+      "Q_hot": 59.3,
+      "Q_cold": 40.7,
+      "objective": 178.5370125729125,
+      "beans_used": 100.0,
+      "water_used": 100.0,
+      "feasible": true,
+      "status": 2
+    },
+    "r3_cost": {
+      "round": 3,
+      "Q_hot": 55.96985429306649,
+      "Q_cold": 0.0,
+      "objective": 113.60665374044336,
+      "beans_used": 55.96985429306649,
+      "water_used": 55.96985429306649,
+      "feasible": true,
+      "status": 2
+    },
+    "r4_shared_bottleneck": {
+      "round": 4,
+      "Q_hot": 46.832467158949,
+      "Q_cold": 18.167532841050996,
+      "objective": 153.71012780297178,
+      "beans_used": 65.0,
+      "water_used": 65.0,
+      "feasible": true,
+      "status": 2
+    }
+  },
+  "failures": [],
+  "summary": {
+    "tests_failed": 0,
+    "status": "PASS"
+  }
+}

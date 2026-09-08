@@ -11,13 +11,17 @@ from __future__ import annotations
 import ast
 import math
 import random
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 from gurobean.model import Scenario, expected_newsvendor_profit, solve_round_scipy
 from gurobean.simulation import GurobeanSimulationConfig, simulate_gurobean, simulate_queue
-import scripts.r9_end_to_end as r9
-
-ROOT = Path(__file__).resolve().parents[1]
+import r9_end_to_end as r9
 
 
 def _assert_close(a: float, b: float, tol: float = 1e-8) -> None:

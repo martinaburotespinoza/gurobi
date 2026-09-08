@@ -1,0 +1,47 @@
+# Gurobean Engine — 1000% certification status
+
+This document is the release truth for the `r9-1000-certification` line.
+
+## Normative source
+
+The primary external normative source is the official Gurobi Gurobean Game Guide:
+
+https://www.gurobi.com/academics/gurobean/game-guide
+
+The guide explicitly defines the eight-round progression, the Poisson-to-Normal optimization approximation, the newsvendor structure, resource constraints, markup, balking, multi-cup orders, and service-rate decisions.
+
+## Gate policy
+
+A release is **1000% CERTIFIED** only when every mandatory gate below is green.
+
+| Gate | Status | Rule |
+|---|---|---|
+| R1 mathematical reference | IMPLEMENTED | Independent Normal-newsvendor reference + solver adapter |
+| R2 mathematical reference | IMPLEMENTED | Two-product reference + shared resource constraints |
+| R3 mathematical reference | IMPLEMENTED | Cost-aware single-product reference |
+| R4 mathematical reference | IMPLEMENTED | Cost-aware two-product constrained reference |
+| R1-R4 automated validation | IMPLEMENTED | Regression/parity/end-to-end checks are in the repository |
+| Real Gurobi binding | REQUIRED | `gurobipy` must import from the real installation |
+| Valid Gurobi license | REQUIRED | Release certification must solve with `OPTIMAL` status |
+| R9 release audit | REQUIRED | `scripts/r9_release.py` must finish with `STATUS: PASS` |
+| R5 markup dynamics | CALIBRATION-GATED | Must be fitted from game observations and independently validated |
+| R6 balking | CALIBRATION-GATED | Must be fitted from observed queue/wait behavior |
+| R7 order-size mechanism | CALIBRATION-GATED | Must be supported by observed order-size data |
+| R8 service-cost curve | CALIBRATION-GATED | Must be supported by observed service-rate/cost data |
+| Production promotion R5-R8 | BLOCKED UNTIL EVIDENCE | No fitted family is a game rule merely because it fits synthetic data |
+
+## Non-negotiable anti-false-positive rules
+
+1. Missing Gurobi is **FAIL**, not PASS.
+2. An unlicensed CI runner is **not** evidence of a Gurobi PASS.
+3. A statistical fit is not an official game equation by itself.
+4. Synthetic calibration data cannot promote R5-R8 into production.
+5. A stale certification artifact cannot certify a newer code revision.
+6. A PWL objective is accepted only after comparison with the exact analytic objective within the release tolerance.
+7. Every reported Gurobi solution must be explicitly feasible and `OPTIMAL`.
+
+## Current release boundary
+
+R1-R4 are the mathematically promotable core. R5-R8 are deliberately isolated behind an evidence gate until the official game behavior has sufficient empirical observations for each mechanism. This boundary is intentional: claiming 1000% without those observations would be a false certification.
+
+The final local release step must therefore execute the real-Gurobi release audit against the exact commit being released and preserve its generated certification artifact with the release evidence.

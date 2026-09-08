@@ -2,7 +2,18 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
-    {"source": "/api/:path*", "destination": "/api/app.py"},
-    {"source": "/(.*)", "destination": "/web/$1"}
+    {"source": "/api/:path*", "destination": "/api/index.py"},
+    {"source": "/", "destination": "/web/index.html"},
+    {"source": "/app", "destination": "/web/index.html"}
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {"key": "X-Content-Type-Options", "value": "nosniff"},
+        {"key": "X-Frame-Options", "value": "DENY"},
+        {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}
+      ]
+    }
   ]
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import erf, exp, sqrt, pi
 from statistics import NormalDist
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 
@@ -21,8 +21,6 @@ def Phi(z: float) -> float:
 
 @dataclass(frozen=True)
 class Scenario:
-    """Parameters explicitly supported by the Gurobean Game Guide model."""
-
     lambda_total: float
     p_hot: float = 1.0
     p_cold: float = 0.0
@@ -44,7 +42,7 @@ class Scenario:
             raise ValueError("lambda_total must be >= 0")
         if self.p_hot < 0 or self.p_cold < 0:
             raise ValueError("drink probabilities must be >= 0")
-        if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
+        if abs(self.p_hot + self.p_cold - 1.0) > 1e-12:
             raise ValueError("drink probabilities must sum to 1")
         for name in (
             "revenue_hot", "revenue_cold", "cost_hot", "cost_cold",
@@ -78,13 +76,18 @@ class RoundConfig:
     def for_round(n: int) -> "RoundConfig":
         if n not in range(1, 9):
             raise ValueError("round must be 1..8")
-        return RoundConfig(n, include_cold=n >= 2, include_brew_cost=n >= 3,
-                           include_markup=n >= 5, include_balking=n >= 6,
-                           include_multi_cup=n >= 7, include_service_rate=n >= 8)
+        return RoundConfig(
+            n, include_cold=n >= 2, include_brew_cost=n >= 3,
+            include_markup=n >= 5, include_balking=n >= 6,
+            include_multi_cup=n >= 7, include_service_rate=n >= 8,
+        )
+
+
+def phi(z: float) -> float:
+    return exp(-0.5 * z * z) / SQRT2PI
 
 
 def expected_newsvendor_profit(Q: float, lam: float, revenue: float, cost: float, salvage: float = 0.0) -> float:
-    """Exact expected profit under the Normal approximation stated by the Game Guide."""
     if Q < 0:
         return -np.inf
     if Q == 0.0:
@@ -101,7 +104,6 @@ def expected_newsvendor_profit(Q: float, lam: float, revenue: float, cost: float
 
 
 def expected_newsvendor_gradient(Q: float, lam: float, revenue: float, cost: float, salvage: float = 0.0) -> float:
-    """Derivative of the exact Normal-newsboy objective with respect to Q."""
     if Q < 0:
         return np.nan
     if lam <= 0:
@@ -111,8 +113,7 @@ def expected_newsvendor_gradient(Q: float, lam: float, revenue: float, cost: flo
 
 
 def _resource_caps(sc: Scenario, include_cold: bool) -> Tuple[float, float]:
-    hot_caps = []
-    cold_caps = []
+    hot_caps, cold_caps = [], []
     if np.isfinite(sc.beans_available):
         if sc.beans_hot > 0:
             hot_caps.append(sc.beans_available / sc.beans_hot)
@@ -123,7 +124,7 @@ def _resource_caps(sc: Scenario, include_cold: bool) -> Tuple[float, float]:
             hot_caps.append(sc.water_available / sc.water_hot)
         if include_cold and sc.water_cold > 0:
             cold_caps.append(sc.water_available / sc.water_cold)
-    return (min(hot_caps) if hot_caps else np.inf, min(cold_caps) if cold_caps else np.inf)
+    return min(hot_caps) if hot_caps else np.inf, min(cold_caps) if cold_caps else np.inf
 
 
 def _has_finite_shared_resource(sc: Scenario) -> bool:
@@ -131,9 +132,11 @@ def _has_finite_shared_resource(sc: Scenario) -> bool:
 
 
 def _feasible(qh: float, qc: float, sc: Scenario) -> bool:
-    return (qh >= -1e-10 and qc >= -1e-10
-            and sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available + 1e-10
-            and sc.water_hot * qh + sc.water_cold * qc <= sc.water_available + 1e-10)
+    return (
+        qh >= -1e-10 and qc >= -1e-10
+        and sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available + 1e-10
+        and sc.water_hot * qh + sc.water_cold * qc <= sc.water_available + 1e-10
+    )
 
 
 def _economic_unconstrained_q(lam: float, revenue: float, cost: float, salvage: float) -> float:
@@ -148,12 +151,11 @@ def _economic_unconstrained_q(lam: float, revenue: float, cost: float, salvage: 
         return 0.0
     if critical_fractile >= 1:
         return np.inf
-    z = _STD_NORMAL.inv_cdf(critical_fractile)
-    return max(0.0, lam + sqrt(lam) * z)
+    return max(0.0, lam + sqrt(lam) * _STD_NORMAL.inv_cdf(critical_fractile))
 
 
 def solve_round1_closed_form(sc: Scenario) -> dict:
-    hot_cap, _ = _resource_caps(sc, include_cold=False)
+    hot_cap, _ = _resource_caps(sc, False)
     if not np.isfinite(hot_cap):
         raise ValueError("R1 is unbounded without a finite hot-coffee resource cap")
     economic = _economic_unconstrained_q(sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot)
@@ -164,50 +166,44 @@ def solve_round1_closed_form(sc: Scenario) -> dict:
     else:
         q = min(hot_cap, economic)
     q = max(0.0, float(q))
-    return {"Q_hot": float(q), "Q_cold": 0.0,
-            "objective": expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot),
-            "method": "closed_form"}
+    return {"Q_hot": q, "Q_cold": 0.0, "objective": expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot), "method": "closed_form"}
 
 
 def solve_round1_scipy(sc: Scenario) -> dict:
     from scipy.optimize import minimize_scalar
-    hot_cap, _ = _resource_caps(sc, include_cold=False)
+    hot_cap, _ = _resource_caps(sc, False)
     if not np.isfinite(hot_cap):
         raise ValueError("R1 is unbounded without a finite hot-coffee resource cap")
-    res = minimize_scalar(lambda q: -expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot),
-                          bounds=(0.0, hot_cap), method="bounded", options={"xatol": 1e-10})
+    res = minimize_scalar(lambda q: -expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, 0.0, sc.salvage_hot), bounds=(0.0, hot_cap), method="bounded", options={"xatol": 1e-10})
     return {"Q_hot": float(res.x), "Q_cold": 0.0, "objective": -float(res.fun), "method": "scipy_validation"}
 
 
 def _round_objective(sc: Scenario, include_cold: bool, include_brew_cost: bool, qh: float, qc: float) -> float:
-    cost_h = sc.cost_hot if include_brew_cost else 0.0
-    cost_c = sc.cost_cold if include_brew_cost else 0.0
-    value = expected_newsvendor_profit(qh, sc.lambda_hot, sc.revenue_hot, cost_h, sc.salvage_hot)
+    ch = sc.cost_hot if include_brew_cost else 0.0
+    cc = sc.cost_cold if include_brew_cost else 0.0
+    value = expected_newsvendor_profit(qh, sc.lambda_hot, sc.revenue_hot, ch, sc.salvage_hot)
     if include_cold:
-        value += expected_newsvendor_profit(qc, sc.lambda_cold, sc.revenue_cold, cost_c, sc.salvage_cold)
+        value += expected_newsvendor_profit(qc, sc.lambda_cold, sc.revenue_cold, cc, sc.salvage_cold)
     return float(value)
 
 
 def _round_bounds(sc: Scenario, include_cold: bool, include_brew_cost: bool) -> Tuple[float, float]:
     hot_resource_cap, cold_resource_cap = _resource_caps(sc, include_cold)
-    hot_cost = sc.cost_hot if include_brew_cost else 0.0
-    cold_cost = sc.cost_cold if include_brew_cost else 0.0
-    hot_economic = _economic_unconstrained_q(sc.lambda_hot, sc.revenue_hot, hot_cost, sc.salvage_hot)
-    cold_economic = _economic_unconstrained_q(sc.lambda_cold, sc.revenue_cold, cold_cost, sc.salvage_cold)
-    hot_hi = min(hot_resource_cap, hot_economic)
-    cold_hi = min(cold_resource_cap, cold_economic)
+    hc = sc.cost_hot if include_brew_cost else 0.0
+    cc = sc.cost_cold if include_brew_cost else 0.0
+    hot_hi = min(hot_resource_cap, _economic_unconstrained_q(sc.lambda_hot, sc.revenue_hot, hc, sc.salvage_hot))
+    cold_hi = min(cold_resource_cap, _economic_unconstrained_q(sc.lambda_cold, sc.revenue_cold, cc, sc.salvage_cold))
     if not np.isfinite(hot_hi):
         raise ValueError("Hot-coffee decision is unbounded under the supplied R2-R4 inputs")
     if include_cold and not np.isfinite(cold_hi):
         raise ValueError("Cold-coffee decision is unbounded under the supplied R2-R4 inputs")
-    return max(0.0, float(hot_hi)), (max(0.0, float(cold_hi)) if include_cold else 0.0)
+    return max(0.0, float(hot_hi)), max(0.0, float(cold_hi)) if include_cold else 0.0
 
 
 def solve_round_scipy(sc: Scenario, round_number: int) -> dict:
     if round_number not in (1, 2, 3, 4):
         raise ValueError("solve_round_scipy currently covers rounds 1-4 only")
-    include_cold = round_number in (2, 4)
-    include_cost = round_number in (3, 4)
+    include_cold, include_cost = round_number in (2, 4), round_number in (3, 4)
     hot_hi, cold_hi = _round_bounds(sc, include_cold, include_cost)
     if round_number == 1:
         return solve_round1_scipy(sc)
@@ -215,21 +211,19 @@ def solve_round_scipy(sc: Scenario, round_number: int) -> dict:
         from scipy.optimize import minimize_scalar
         if hot_hi <= 1e-12:
             return {"Q_hot": 0.0, "Q_cold": 0.0, "objective": 0.0, "method": "scipy_reference"}
-        res = minimize_scalar(lambda q: -expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot),
-                              bounds=(0.0, hot_hi), method="bounded", options={"xatol": 1e-10})
+        res = minimize_scalar(lambda q: -expected_newsvendor_profit(q, sc.lambda_hot, sc.revenue_hot, sc.cost_hot, sc.salvage_hot), bounds=(0.0, hot_hi), method="bounded", options={"xatol": 1e-10})
         return {"Q_hot": float(res.x), "Q_cold": 0.0, "objective": -float(res.fun), "method": "scipy_reference"}
     from scipy.optimize import minimize
-    def objective(x: np.ndarray) -> float:
+    def objective(x):
         return -_round_objective(sc, include_cold, include_cost, float(x[0]), float(x[1]))
-    def gradient(x: np.ndarray) -> np.ndarray:
-        cost_h = sc.cost_hot if include_cost else 0.0
-        cost_c = sc.cost_cold if include_cost else 0.0
+    def gradient(x):
+        ch = sc.cost_hot if include_cost else 0.0
+        cc = sc.cost_cold if include_cost else 0.0
         return -np.asarray([
-            expected_newsvendor_gradient(float(x[0]), sc.lambda_hot, sc.revenue_hot, cost_h, sc.salvage_hot),
-            expected_newsvendor_gradient(float(x[1]), sc.lambda_cold, sc.revenue_cold, cost_c, sc.salvage_cold),
+            expected_newsvendor_gradient(float(x[0]), sc.lambda_hot, sc.revenue_hot, ch, sc.salvage_hot),
+            expected_newsvendor_gradient(float(x[1]), sc.lambda_cold, sc.revenue_cold, cc, sc.salvage_cold),
         ], dtype=float)
-    starts = [np.array([min(hot_hi, sc.lambda_hot), min(cold_hi, sc.lambda_cold)], dtype=float),
-              np.zeros(2, dtype=float), np.array([hot_hi, 0.0], dtype=float), np.array([0.0, cold_hi], dtype=float)]
+    starts = [np.array([min(hot_hi, sc.lambda_hot), min(cold_hi, sc.lambda_cold)]), np.zeros(2), np.array([hot_hi, 0.0]), np.array([0.0, cold_hi])]
     feasible_starts = []
     for x0 in starts:
         x0 = np.clip(x0, 0.0, [hot_hi, cold_hi])
@@ -243,30 +237,24 @@ def solve_round_scipy(sc: Scenario, round_number: int) -> dict:
                     break
         feasible_starts.append(x0)
     constraints = [
-        {"type": "ineq", "fun": lambda x: sc.beans_available - sc.beans_hot*x[0] - sc.beans_cold*x[1],
-         "jac": lambda x: np.asarray([-sc.beans_hot, -sc.beans_cold])},
-        {"type": "ineq", "fun": lambda x: sc.water_available - sc.water_hot*x[0] - sc.water_cold*x[1],
-         "jac": lambda x: np.asarray([-sc.water_hot, -sc.water_cold])},
+        {"type": "ineq", "fun": lambda x: sc.beans_available - sc.beans_hot*x[0] - sc.beans_cold*x[1], "jac": lambda x: np.asarray([-sc.beans_hot, -sc.beans_cold])},
+        {"type": "ineq", "fun": lambda x: sc.water_available - sc.water_hot*x[0] - sc.water_cold*x[1], "jac": lambda x: np.asarray([-sc.water_hot, -sc.water_cold])},
     ]
     candidates = []
     for x0 in feasible_starts:
-        result = minimize(objective, x0, jac=gradient, method="SLSQP",
-                          bounds=[(0.0, hot_hi), (0.0, cold_hi)], constraints=constraints,
-                          options={"ftol": 1e-10, "maxiter": 2000})
+        result = minimize(objective, x0, jac=gradient, method="SLSQP", bounds=[(0.0, hot_hi), (0.0, cold_hi)], constraints=constraints, options={"ftol": 1e-10, "maxiter": 2000})
         if result.success and _feasible(float(result.x[0]), float(result.x[1]), sc):
             candidates.append(result)
     if not candidates:
         raise RuntimeError(f"SLSQP failed for R{round_number}: no feasible successful start")
     result = min(candidates, key=lambda r: float(r.fun))
     qh, qc = map(float, result.x)
-    return {"Q_hot": qh, "Q_cold": qc,
-            "objective": _round_objective(sc, include_cold, include_cost, qh, qc),
-            "method": "scipy_reference"}
+    return {"Q_hot": qh, "Q_cold": qc, "objective": _round_objective(sc, include_cold, include_cost, qh, qc), "method": "scipy_reference"}
 
 
 def _resource_vertices(sc: Scenario, include_cold: bool, hot_hi: float, cold_hi: float) -> list[tuple[float, float]]:
-    vertices: set[tuple[float, float]] = {(0.0, 0.0), (float(hot_hi), 0.0), (0.0, float(cold_hi)), (float(hot_hi), float(cold_hi))}
-    constraints: list[tuple[float, float, float]] = []
+    vertices = {(0.0, 0.0), (float(hot_hi), 0.0), (0.0, float(cold_hi)), (float(hot_hi), float(cold_hi))}
+    constraints = []
     if np.isfinite(sc.beans_available):
         constraints.append((float(sc.beans_hot), float(sc.beans_cold if include_cold else 0.0), float(sc.beans_available)))
     if np.isfinite(sc.water_available):
@@ -274,28 +262,86 @@ def _resource_vertices(sc: Scenario, include_cold: bool, hot_hi: float, cold_hi:
     for a, b, rhs in constraints:
         if abs(a) > 1e-15:
             for qc in (0.0, float(cold_hi)):
-                qh = (rhs - b*qc) / a
+                qh = (rhs - b * qc) / a
                 if -1e-9 <= qh <= hot_hi + 1e-9 and _feasible(qh, qc, sc):
                     vertices.add((min(max(float(qh), 0.0), float(hot_hi)), float(qc)))
         if include_cold and abs(b) > 1e-15:
             for qh in (0.0, float(hot_hi)):
-                qc = (rhs - a*qh) / b
+                qc = (rhs - a * qh) / b
                 if -1e-9 <= qc <= cold_hi + 1e-9 and _feasible(qh, qc, sc):
                     vertices.add((float(qh), min(max(float(qc), 0.0), float(cold_hi))))
     if len(constraints) >= 2:
         a1, b1, r1 = constraints[0]
         a2, b2, r2 = constraints[1]
-        det = a1*b2 - a2*b1
+        det = a1 * b2 - a2 * b1
         if abs(det) > 1e-15:
-            qh = (r1*b2 - r2*b1) / det
-            qc = (a1*r2 - a2*r1) / det
+            qh = (r1 * b2 - r2 * b1) / det
+            qc = (a1 * r2 - a2 * r1) / det
             if -1e-9 <= qh <= hot_hi + 1e-9 and -1e-9 <= qc <= cold_hi + 1e-9 and _feasible(qh, qc, sc):
                 vertices.add((min(max(float(qh), 0.0), float(hot_hi)), min(max(float(qc), 0.0), float(cold_hi))))
     return sorted(vertices)
 
 
+PWL_APPROX_TOL = 2.0e-7
+
+
+def _newsvendor_curvature(Q: float, lam: float, revenue: float, salvage: float) -> float:
+    if lam <= 0.0 or revenue <= salvage:
+        return 0.0
+    z = (float(Q) - lam) / sqrt(lam)
+    return (revenue - salvage) * phi(z) / sqrt(lam)
+
+
+def _interval_curvature(a: float, b: float, lam: float, revenue: float, salvage: float) -> float:
+    if b <= a:
+        return 0.0
+    xs = [float(a), float(b)]
+    if a <= lam <= b:
+        xs.append(float(lam))
+    return max(_newsvendor_curvature(x, lam, revenue, salvage) for x in xs)
+
+
+def _adaptive_pwl_points(hi: float, lam: float, revenue: float, salvage: float, critical_points: list[float] | None, max_points: int) -> list[float]:
+    hi = float(hi)
+    if hi <= 1e-12:
+        return [0.0] if hi <= 0.0 else [0.0, hi]
+    anchors = {0.0, hi}
+    for value in critical_points or []:
+        x = float(value)
+        if -1e-12 <= x <= hi + 1e-12:
+            anchors.add(min(max(x, 0.0), hi))
+    anchors = sorted(anchors)
+    if _interval_curvature(0.0, hi, lam, revenue, salvage) == 0.0:
+        return anchors
+    stack = list(zip(anchors[:-1], anchors[1:]))
+    refined = []
+    while stack:
+        a, b = stack.pop()
+        bound = _interval_curvature(a, b, lam, revenue, salvage) * (b - a) ** 2 / 8.0
+        if bound <= PWL_APPROX_TOL:
+            refined.append((a, b))
+            continue
+        mid = 0.5 * (a + b)
+        if mid <= a or mid >= b:
+            refined.append((a, b))
+            continue
+        stack.append((mid, b))
+        stack.append((a, mid))
+        if len(stack) + len(refined) > max_points * 2:
+            raise RuntimeError(f"adaptive PWL refinement exceeded point budget ({max_points}); domain={hi}, lambda={lam}, revenue={revenue}, salvage={salvage}")
+    refined.sort()
+    points = [refined[0][0]]
+    for a, b in refined:
+        if abs(points[-1] - a) > 1e-14:
+            points.append(a)
+        if b > points[-1]:
+            points.append(b)
+    if len(points) > max_points:
+        raise RuntimeError(f"adaptive PWL refinement requires {len(points)} points > {max_points}")
+    return points
+
+
 def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
-    """Solve R1-R4 with native Gurobi PWL objectives."""
     if round_number not in (1, 2, 3, 4):
         raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
     try:
@@ -311,25 +357,21 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
     m.Params.FeasibilityTol = 1e-9
     m.Params.OptimalityTol = 1e-9
     m.Params.NumericFocus = 2
-    # The model is a profit maximization. setPWLObj() installs the PWL
-    # objective function but does not change Gurobi's default MINIMIZE sense.
-    # Without this explicit sense Gurobi selects the minimum-profit point
-    # (typically Q=0), producing catastrophic regret despite a correct PWL.
     m.ModelSense = gp.GRB.MAXIMIZE
     qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
-    qc = m.addVar(lb=0.0, ub=(cold_hi if include_cold else 0.0), name="Q_cold")
+    qc = m.addVar(lb=0.0, ub=cold_hi if include_cold else 0.0, name="Q_cold")
     if np.isfinite(sc.beans_available):
         m.addConstr(sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available, name="beans")
     if np.isfinite(sc.water_available):
         m.addConstr(sc.water_hot * qh + sc.water_cold * qc <= sc.water_available, name="water")
     resource_vertices = _resource_vertices(sc, include_cold, hot_hi, cold_hi)
     objective_constant = 0.0
+
     def set_profit_pwl(var, hi, lam, revenue, cost, salvage, critical_points=None, name="profit"):
         nonlocal objective_constant
         hi = float(hi)
-        f0 = expected_newsvendor_profit(0.0, lam, revenue, cost, salvage)
         if hi <= 1e-12:
-            objective_constant += float(f0)
+            objective_constant += float(expected_newsvendor_profit(0.0, lam, revenue, cost, salvage))
             return
         if hi < 1e-5:
             t = m.addVar(lb=0.0, ub=1.0, name=f"{name}_normalized")
@@ -338,42 +380,22 @@ def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001)
             ys = [expected_newsvendor_profit(float(hi * x), lam, revenue, cost, salvage) for x in xs]
             m.setPWLObj(t, xs.tolist(), ys)
             return
-        base_xs = np.linspace(0.0, hi, points)
-        extra = [float(x) for x in (critical_points or []) if -1e-12 <= float(x) <= hi + 1e-12]
-        xs = np.asarray(sorted({round(float(x), 15) for x in np.concatenate((base_xs, np.asarray(extra, dtype=float))) if -1e-12 <= float(x) <= hi + 1e-12}), dtype=float)
-        xs = np.clip(xs, 0.0, hi)
-        if len(xs) >= 2:
-            scale = max(1.0, abs(hi))
-            min_dx = max(1.1e-6, 1e-8 * scale)
-            filtered = [float(xs[0])]
-            for x in xs[1:]:
-                x = float(x)
-                if x - filtered[-1] >= min_dx:
-                    filtered.append(x)
-            if filtered[-1] < hi:
-                if hi - filtered[-1] >= min_dx:
-                    filtered.append(hi)
-                elif len(filtered) >= 2:
-                    filtered[-1] = hi
-            xs = np.asarray(filtered, dtype=float)
-        if len(xs) < 2 or np.max(np.diff(xs)) <= 0.0:
-            xs = np.asarray([0.0, hi], dtype=float)
+        xs = _adaptive_pwl_points(hi, lam, revenue, salvage, critical_points, points)
         ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
-        m.setPWLObj(var, xs.tolist(), ys)
+        m.setPWLObj(var, xs, ys)
+
     set_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, [v[0] for v in resource_vertices], "profit_hot")
     if include_cold:
         set_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, [v[1] for v in resource_vertices], "profit_cold")
-    # Do not call setObjective() here: it would replace the native PWL objective
-    # terms installed above. ObjCon is the additive constant for degenerate domains.
-    if objective_constant != 0.0:
-        m.ObjCon = float(objective_constant)
+    if objective_constant:
+        m.ObjCon = objective_constant
     m.optimize()
     if m.Status != gp.GRB.OPTIMAL:
         raise RuntimeError(f"Gurobi did not return OPTIMAL; status={m.Status}")
     qh_value = float(qh.X)
     qc_value = float(qc.X) if include_cold else 0.0
     exact_objective = _round_objective(sc, include_cold, include_cost, qh_value, qc_value)
-    return {"Q_hot": qh_value, "Q_cold": qc_value, "objective": float(m.ObjVal), "exact_objective": float(exact_objective), "method": "gurobi_native_pwl_objective_validation", "status": int(m.Status), "pwl_points": points}
+    return {"Q_hot": qh_value, "Q_cold": qc_value, "objective": float(m.ObjVal), "exact_objective": exact_objective, "method": "gurobi_native_pwl_objective_validation", "status": int(m.Status), "pwl_points": points}
 
 
 def solve_round(round_number: int, sc: Scenario, backend: str = "scipy") -> dict:
@@ -395,7 +417,6 @@ def solve_gurobi_r1(sc: Scenario):
 
 
 def solve_reference_round(sc: Scenario, round_number: int | None = None) -> dict:
-    """Stable analytic reference for the release/certification harness."""
     if round_number is None:
         round_number = 1
     if round_number not in (1, 2, 3, 4):

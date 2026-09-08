@@ -27,7 +27,13 @@ python scripts/r9_end_to_end.py
 
 `check_gurobi.py` deliberately returns a non-zero status when `gurobipy` or a valid Gurobi license is unavailable; the engine never fakes a solver result.
 
-**R9 release gate:** run `python scripts/r9_end_to_end.py` in the licensed local Gurobi environment. The generated artifact must report `R9 STATUS: PASS` and `GUROBI_GATE: CHECKED`. CI can certify the reference path but cannot substitute for the licensed Gurobi gate.
+**R9 release gate:** in the licensed local Gurobi environment run:
+
+```bash
+python scripts/r9_end_to_end.py --require-gurobi
+```
+
+The generated artifact must report `R9 STATUS: PASS` and `GUROBI_GATE: CHECKED`. CI certifies the reference path but cannot substitute for the licensed Gurobi gate.
 
 ## Run the API
 

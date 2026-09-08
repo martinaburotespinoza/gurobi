@@ -10,8 +10,8 @@ PATCH = r'''<style>
 #liveCapture{position:fixed;right:18px;bottom:18px;z-index:9999;text-decoration:none;background:#173b68;color:#fff;border:1px solid #2c5785;border-radius:999px;padding:11px 15px;font:800 11px system-ui,-apple-system,"Segoe UI",sans-serif;box-shadow:0 10px 30px rgba(23,59,104,.22)}#liveCapture:hover{transform:translateY(-1px)}
 </style><a id="liveCapture" href="/capture">🎥 Capturar juego en vivo</a><script>
 (function(){
-  /* Public Vercel has no local Gurobi license. Keep the public UI executable:
-     R1-R4 use the analytical/reference backend; R5-R8 use Monte Carlo. */
+  /* Public Vercel has no local Gurobi license. R1-R4 use the analytical
+     reference backend; R5-R8 use the explicit Monte Carlo evaluator. */
   const nativeFetch=window.fetch.bind(window);
   window.fetch=async function(input,init){
     try{
@@ -20,9 +20,10 @@ PATCH = r'''<style>
         const body=JSON.parse(init.body);
         if(body){
           if(body.backend==='gurobi') body.backend='scipy';
-          /* Custom mode uses round 4 as its analytical shell. When the user
-             explicitly selects Monte Carlo, promote that custom request to
-             the full stochastic R8 evaluator without changing source code. */
+          /* The custom screen exposes the complete stochastic parameter set.
+             Its UI shell is R4, while the simulation evaluator is R8. This
+             adapter keeps the public API contract strict (simulation is only
+             accepted for R5-R8) without weakening server-side validation. */
           if(body.backend==='simulation'&&body.round_number===4) body.round_number=8;
           init={...init,body:JSON.stringify(body)};
         }
@@ -72,5 +73,8 @@ def ui() -> HTMLResponse:
     html = html.replace("(r>=5?'simulation':'gurobi')", "(r>=5?'simulation':'scipy')")
     html = html.replace("arrival_reference_rate:36", "arrival_reference_rate:Math.min(36,v('lambda_total',60))")
     html = html.replace('<option value="gurobi">Gurobi · PWL</option>', '<option value="scipy">SciPy · referencia pública</option>')
+    html = html.replace('<div class="mini"><b>R9</b><span>Release gate</span></div>', '<div class="mini"><b>Release</b><span>Certificación final</span></div>')
+    html = html.replace('R9 no es una ronda del juego; es la puerta técnica de release.', 'La certificación final no es una ronda del juego; es la puerta técnica de release.')
+    html = html.replace(' · R9 = release gate', ' · certificación final = release gate')
     html = html.replace('</body>', PATCH + '</body>')
     return HTMLResponse(html)

@@ -2,6 +2,7 @@
 
 Release policy:
 - the real Gurobi binding and a valid license must be available;
+- the working tree must be clean so the artifact identifies the exact code;
 - every R1-R4 certification case must solve to OPTIMAL;
 - solver decisions must satisfy the explicit resource constraints;
 - the exact analytical objective at the returned point must be within the
@@ -21,6 +22,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -61,6 +63,22 @@ class CheckResult:
     q_error: float
     passed: bool
     error: str | None = None
+
+
+def _git_state() -> tuple[str, bool]:
+    """Return exact HEAD and whether the repository is clean."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+        dirty = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=ROOT, text=True
+        ).strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(f"unable to establish exact git release state: {exc}") from exc
+    if not commit or len(commit) != 40:
+        raise RuntimeError("invalid git HEAD for release certification")
+    return commit, not bool(dirty)
 
 
 def check(sc, round_number: int, points: int) -> CheckResult:
@@ -119,6 +137,17 @@ def _with_case(result: CheckResult, case: int) -> CheckResult:
 
 
 def main() -> int:
+    print("=== R9 RELEASE CERTIFICATION ===")
+
+    try:
+        git_commit, git_clean = _git_state()
+        if not git_clean:
+            raise RuntimeError("working tree is dirty; certification must run on an exact commit")
+    except Exception as exc:
+        print("STATUS: FAIL")
+        print(f"RELEASE_STATE: FAIL ({exc!r})")
+        return 1
+
     # Import and license failures are deliberately fatal: this is a release
     # gate, not a reference-only smoke test.
     try:
@@ -129,9 +158,9 @@ def main() -> int:
         env.start()
         env.dispose()
     except Exception as exc:
-        print("=== R9 RELEASE CERTIFICATION ===")
         print("STATUS: FAIL")
         print(f"GUROBI_GATE: FAIL ({exc!r})")
+        print(f"GIT_COMMIT: {git_commit}")
         return 1
 
     rng = random.Random(r9.SEED)
@@ -152,7 +181,6 @@ def main() -> int:
                     if final.passed:
                         break
 
-            # Only the final attempt is authoritative in the artifact.
             records.append(final)
             if not final.passed:
                 failures.append(asdict(final))
@@ -171,7 +199,9 @@ def main() -> int:
     )
     status = "PASS" if not failures else "FAIL"
     artifact = {
-        "schema": "gurobean.r9.release-certification.v2",
+        "schema": "gurobean.r9.release-certification.v3",
+        "git_commit": git_commit,
+        "git_clean": git_clean,
         "seed": r9.SEED,
         "cases": r9.CASES,
         "rounds": list(r9.ROUNDS),
@@ -196,7 +226,7 @@ def main() -> int:
     tmp.write_text(json.dumps(artifact, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(ARTIFACT)
 
-    print("=== R9 RELEASE CERTIFICATION ===")
+    print(f"GIT_COMMIT: {git_commit}")
     print(f"GUROBI_VERSION: {version}")
     print(f"CASES: {r9.CASES} x ROUNDS: {len(r9.ROUNDS)} = {len(records)}")
     print(f"BASE_PWL_POINTS: {BASE_POINTS}")

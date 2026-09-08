@@ -51,14 +51,20 @@ class GurobeanSimulationConfig:
     def __post_init__(self) -> None:
         if self.hours <= 0 or self.warmup_hours < 0 or self.warmup_hours >= self.hours:
             raise ValueError("hours must be > 0 and 0 <= warmup_hours < hours")
-        for name in ("lambda_rate", "mu_rate", "brew_hot_per_hour", "brew_cold_per_hour", "markup", "revenue_hot", "revenue_cold", "brew_cost_hot", "brew_cost_cold", "barista_cost_per_hour"):
+        for name in (
+            "lambda_rate", "mu_rate", "brew_hot_per_hour", "brew_cold_per_hour",
+            "markup", "revenue_hot", "revenue_cold", "brew_cost_hot",
+            "brew_cost_cold", "barista_cost_per_hour",
+        ):
             value = float(getattr(self, name))
             if not np.isfinite(value) or value < 0:
                 raise ValueError(f"{name} must be finite and >= 0")
         if self.mu_rate <= 0:
             raise ValueError("mu_rate must be > 0")
-        if self.p_hot < 0 or self.p_cold < 0 or self.p_hot + self.p_cold > 1 + 1e-12:
-            raise ValueError("drink probabilities must be nonnegative and sum <= 1")
+        if self.p_hot < 0 or self.p_cold < 0 or self.p_hot > 1 or self.p_cold > 1:
+            raise ValueError("drink probabilities must be in [0, 1]")
+        if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
+            raise ValueError("drink probabilities must sum to 1")
         if self.queue_metric not in {"queue", "wait_minutes"}:
             raise ValueError("queue_metric must be 'queue' or 'wait_minutes'")
 
@@ -78,7 +84,7 @@ def _stay(config: GurobeanSimulationConfig, metric: float) -> bool:
     p = float(config.stay_probability(metric))
     if not np.isfinite(p) or p < 0 or p > 1:
         raise ValueError("stay_probability must return a value in [0, 1]")
-    return p
+    return bool(config._rng_for_probability.random() < p) if hasattr(config, "_rng_for_probability") else p
 
 
 def simulate_gurobean(config: GurobeanSimulationConfig):
@@ -88,6 +94,9 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
     FIFO queue, may balk according to a supplied calibrated probability, and
     consume brewed inventory when service begins. Service time is exponential
     with rate ``mu_rate`` per order. Brewing is reset at each simulated hour.
+
+    ``warmup_hours`` affects performance metrics only. Economic accounting still
+    covers the full requested horizon, matching the game's 120-hour score.
     """
     rng = np.random.default_rng(config.seed)
     end = config.hours * 60.0
@@ -106,18 +115,24 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
     busy_area = 0.0
     profit = 0.0
     last = 0.0
-    current_service_start = None
     next_brew_hour = 0.0
 
-    def add_brew(hour_index: int) -> None:
+    def add_brew() -> None:
         nonlocal profit
         inventory["hot"] += config.brew_hot_per_hour
         inventory["cold"] += config.brew_cold_per_hour
-        # Brewing cost is incurred when production is committed, including waste.
         profit -= config.brew_cost_hot * config.brew_hot_per_hour
         profit -= config.brew_cost_cold * config.brew_cold_per_hour
 
-    add_brew(0)
+    def should_stay(metric: float) -> bool:
+        if config.stay_probability is None:
+            return True
+        p = float(config.stay_probability(metric))
+        if not np.isfinite(p) or p < 0 or p > 1:
+            raise ValueError("stay_probability must return a value in [0, 1]")
+        return bool(rng.random() < p)
+
+    add_brew()
     while t < end:
         next_brew = next_brew_hour + 60.0
         nxt = min(next_arrival, next_departure, next_brew, end)
@@ -131,7 +146,7 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
         if t == next_brew:
             next_brew_hour += 60.0
             if t < end:
-                add_brew(int(next_brew_hour // 60))
+                add_brew()
             last = t
             continue
 
@@ -140,20 +155,13 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
             if in_window:
                 arrivals += 1
             drink_draw = rng.random()
-            drink = "hot" if drink_draw < config.p_hot else "cold" if drink_draw < config.p_hot + config.p_cold else None
-            if drink is None:
-                if in_window:
-                    lost += 1
-                    lost_customers += 1
-                next_arrival = t + rng.exponential(60.0 / config.lambda_rate) if config.lambda_rate else inf
-                last = t
-                continue
+            drink = "hot" if drink_draw < config.p_hot else "cold"
             order_size = _draw_order_size(config, rng)
             projected_wait = 0.0
             if next_departure != inf:
                 projected_wait = max(0.0, next_departure - t) + len(queue) * (60.0 / config.mu_rate)
             metric = float(len(queue)) if config.queue_metric == "queue" else projected_wait
-            if not _stay(config, metric):
+            if not should_stay(metric):
                 if in_window:
                     lost += 1
                     lost_customers += 1
@@ -163,7 +171,6 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
             queue.append((t, drink, order_size))
             if next_departure == inf:
                 next_departure = t + rng.exponential(60.0 / config.mu_rate)
-                current_service_start = t
             next_arrival = t + rng.exponential(60.0 / config.lambda_rate) if config.lambda_rate else inf
             last = t
             continue
@@ -172,23 +179,21 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
             if queue:
                 arrival_time, drink, order_size = queue.popleft()
                 wait = max(0.0, t - arrival_time)
-                if drink in inventory and inventory[drink] + 1e-12 >= order_size:
+                if inventory[drink] + 1e-12 >= order_size:
                     inventory[drink] -= order_size
+                    served_cups += order_size
+                    profit += order_size * (config.revenue_hot if drink == "hot" else config.revenue_cold)
                     if t >= warm and arrival_time >= warm:
                         served += 1
-                        served_cups += order_size
                         wait_sum += wait
                         wait_count += 1
-                        profit += order_size * (config.revenue_hot if drink == "hot" else config.revenue_cold)
                 else:
                     if t >= warm and arrival_time >= warm:
                         lost += 1
                         lost_customers += 1
                 next_departure = t + rng.exponential(60.0 / config.mu_rate)
-                current_service_start = t
             else:
                 next_departure = inf
-                current_service_start = None
             last = t
             continue
         break
@@ -196,7 +201,7 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
     measured_hours = max(config.hours - config.warmup_hours, 1)
     effective_minutes = measured_hours * 60.0
     if config.barista_cost_per_hour:
-        profit -= config.barista_cost_per_hour * measured_hours
+        profit -= config.barista_cost_per_hour * config.hours
     result = SimulationResult(
         hours=config.hours,
         arrivals=arrivals,

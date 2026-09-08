@@ -135,7 +135,6 @@ def _ternary_max(sc: Scenario, round_number: int, a: np.ndarray, b: np.ndarray) 
 def _polygon_vertices(sc: Scenario, round_number: int) -> list[np.ndarray]:
     """Enumerate all feasible vertices of the 2-D R2/R4 feasible polygon."""
     hot_hi, cold_hi = _round_bounds(sc, round_number in (2, 4), round_number in (3, 4))
-    # A*x + B*y <= C. The first four constraints are the box.
     lines = [
         (1.0, 0.0, 0.0),
         (0.0, 1.0, 0.0),
@@ -214,6 +213,23 @@ def _robust_reference(sc: Scenario, round_number: int) -> dict:
     return _concave_polygon_reference(sc, round_number)
 
 
+def _gurobi_feasible(qh: float, qc: float, sc: Scenario) -> bool:
+    """Validate solver output with an explicit floating-point certification tolerance.
+
+    The model feasibility checker intentionally remains strict. R9 validates a
+    numerical optimizer's returned point separately, using FEAS_TOL so tiny
+    floating-point residuals do not become false certification failures.
+    """
+    beans_usage = sc.beans_hot * qh + sc.beans_cold * qc
+    water_usage = sc.water_hot * qh + sc.water_cold * qc
+    return bool(
+        math.isfinite(qh) and math.isfinite(qc)
+        and qh >= -FEAS_TOL and qc >= -FEAS_TOL
+        and beans_usage <= sc.beans_available + FEAS_TOL
+        and water_usage <= sc.water_available + FEAS_TOL
+    )
+
+
 def certify_case(index: int, round_number: int, sc: Scenario, require_gurobi: bool) -> CaseResult:
     try:
         ref = _robust_reference(sc, round_number)
@@ -244,7 +260,7 @@ def certify_case(index: int, round_number: int, sc: Scenario, require_gurobi: bo
         gobj_exact = _objective(sc, round_number, gqh, gqc)
         q_error = max(abs(gqh - qh), abs(gqc - qc))
         gobj_error = abs(gobj_exact - exact_obj)
-        gurobi_ok = bool(_feasible(gqh, gqc, sc) and math.isfinite(gobj_exact) and gobj_error <= PWL_OBJ_TOL)
+        gurobi_ok = bool(_gurobi_feasible(gqh, gqc, sc) and math.isfinite(gobj_exact) and gobj_error <= PWL_OBJ_TOL)
         return CaseResult(index, round_number, reference_ok, True, gurobi_ok, qh, qc, float(ref["objective"]), objective_error, q_error, feasible, deterministic)
     except Exception as exc:
         return CaseResult(index, round_number, False, False, False, math.nan, math.nan, math.nan, math.inf, math.inf, False, False, repr(exc))
@@ -277,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         "gurobi_failures": len(gurobi_failures), "max_reference_objective_error": max_obj_error,
         "max_gurobi_q_error": max_q_error, "require_gurobi": args.require_gurobi,
         "gurobi_gate": "CHECKED" if gurobi_checked else "NOT_AVAILABLE_IN_ENVIRONMENT",
-        "criteria": {"reference_objective_tol": REFERENCE_OBJ_TOL, "pwl_exact_objective_regret_tol": PWL_OBJ_TOL, "pwl_q_error_diagnostic_tol": PWL_Q_DIAGNOSTIC_TOL},
+        "criteria": {"reference_objective_tol": REFERENCE_OBJ_TOL, "pwl_exact_objective_regret_tol": PWL_OBJ_TOL, "pwl_q_error_diagnostic_tol": PWL_Q_DIAGNOSTIC_TOL, "solver_feasibility_tol": FEAS_TOL},
         "status": status, "results": [asdict(r) for r in results],
     }
     Path("r9_end_to_end.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
@@ -289,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"MAX_REFERENCE_OBJECTIVE_ERROR: {max_obj_error:.12g}")
     print(f"MAX_GUROBI_Q_ERROR: {max_q_error:.12g} (diagnostic; not a pass/fail criterion)")
     print(f"GUROBI_EXACT_OBJECTIVE_REGRET_TOL: {PWL_OBJ_TOL:.12g}")
+    print(f"GUROBI_SOLVER_FEASIBILITY_TOL: {FEAS_TOL:.12g}")
     print(f"GUROBI_GATE: {out['gurobi_gate']}")
     print(f"R9 STATUS: {status}")
     print("ARTIFACT: r9_end_to_end.json")

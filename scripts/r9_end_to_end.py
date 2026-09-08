@@ -22,7 +22,6 @@ from gurobean.model import (
     _feasible,
     _round_bounds,
     _round_objective,
-    expected_newsvendor_profit,
     solve_round,
 )
 
@@ -53,8 +52,6 @@ class CaseResult:
 
 
 def _scenario(rng: random.Random, edge: int) -> Scenario:
-    # Deliberately include regular, resource-tight, low-demand and tiny-scale
-    # cases. Parameters satisfy a finite economic optimum for every product.
     if edge == 0:
         lam = 0.05
         p_hot, p_cold = 1.0, 0.0
@@ -78,7 +75,6 @@ def _scenario(rng: random.Random, edge: int) -> Scenario:
     bh, bc = rng.uniform(0.05, 2.0), rng.uniform(0.05, 2.0)
     wh, wc = rng.uniform(0.1, 3.0), rng.uniform(0.1, 3.0)
     if edge == 1:
-        # Tight shared resources force the optimizer onto boundaries.
         scale = lam * 0.55
     elif edge == 2:
         scale = 0.002
@@ -120,13 +116,6 @@ def _objective(sc: Scenario, round_number: int, qh: float, qc: float) -> float:
     )
 
 
-def _resource_slack(sc: Scenario, qh: float, qc: float) -> tuple[float, float]:
-    return (
-        float(sc.beans_available - sc.beans_hot * qh - sc.beans_cold * qc),
-        float(sc.water_available - sc.water_hot * qh - sc.water_cold * qc),
-    )
-
-
 def certify_case(index: int, round_number: int, sc: Scenario) -> CaseResult:
     try:
         ref = _reference(sc, round_number)
@@ -135,7 +124,6 @@ def certify_case(index: int, round_number: int, sc: Scenario) -> CaseResult:
         objective_error = abs(float(ref["objective"]) - expected_obj)
         feasible = _feasible(qh, qc, sc)
 
-        # Same inputs must produce the same reference decision/objective.
         ref2 = _reference(sc, round_number)
         deterministic = (
             abs(qh - float(ref2["Q_hot"])) <= 1e-12
@@ -158,26 +146,23 @@ def certify_case(index: int, round_number: int, sc: Scenario) -> CaseResult:
         gurobi_ok = True
         q_error = 0.0
         try:
-            import gurobipy  # noqa: F401
-            gurobi = solve_round(round_number, sc, backend="gurobi")
+            import gurobipy
+        except ImportError:
+            gurobipy = None
+
+        if gurobipy is not None:
             gurobi_checked = True
+            gurobi = solve_round(round_number, sc, backend="gurobi")
             gqh, gqc = float(gurobi["Q_hot"]), float(gurobi["Q_cold"])
             gobj_exact = _objective(sc, round_number, gqh, gqc)
             q_error = max(abs(gqh - qh), abs(gqc - qc))
             gobj_error = abs(gobj_exact - expected_obj)
-            # PWL objective can differ from exact objective; certify against
-            # the exact economic objective, with a conservative absolute bound.
             gurobi_ok = bool(
                 _feasible(gqh, gqc, sc)
                 and math.isfinite(gobj_exact)
                 and q_error <= Q_TOL
                 and gobj_error <= OBJ_TOL
             )
-        except (ImportError, RuntimeError):
-            # CI does not ship a Gurobi license. This is a deliberate conditional
-            # gate, not a silent claim that Gurobi was certified.
-            gurobi_checked = False
-            gurobi_ok = True
 
         return CaseResult(
             index, round_number, reference_ok, gurobi_checked, gurobi_ok,
@@ -233,8 +218,6 @@ def main() -> int:
     print(f"GUROBI_GATE: {out['gurobi_gate']}")
     print(f"R9 STATUS: {status}")
     print("ARTIFACT: r9_end_to_end.json")
-    # A missing Gurobi installation is not a mathematical failure in CI, but
-    # the artifact explicitly records that the local Gurobi gate remains due.
     return 0 if status == "PASS" else 1
 
 

@@ -1,12 +1,11 @@
 from pathlib import Path
+
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
 HTML_PATH = Path(__file__).resolve().parent.parent / "web" / "index.html"
+app = FastAPI()
 
-# Browser-safe patch: the public Vercel runtime does not provide the licensed
-# gurobipy environment used by the local R1-R4 certification gate. The public
-# console therefore uses the independent SciPy reference backend for execution
-# and keeps Gurobi as a local certification backend.
 PATCH = r'''<script>
 (function(){
   const originalSolve=window.solve;
@@ -36,14 +35,12 @@ PATCH = r'''<script>
 })();
 </script>'''
 
-def handler(request):
+@app.get("/")
+def ui() -> HTMLResponse:
     if not HTML_PATH.is_file():
-        return HTMLResponse('<h1>Gurobean UI unavailable</h1>', status_code=500)
-    html = HTML_PATH.read_text(encoding='utf-8')
+        return HTMLResponse("<h1>Gurobean UI unavailable</h1>", status_code=500)
+    html = HTML_PATH.read_text(encoding="utf-8")
     html = html.replace("(r>=5?'simulation':'gurobi')", "(r>=5?'simulation':'scipy')")
-    html = html.replace("['gurobi',", "['scipy',")
+    html = html.replace('<option value="gurobi">Gurobi · PWL</option>', '<option value="scipy">SciPy · referencia</option>')
     html = html.replace('</body>', PATCH + '</body>')
     return HTMLResponse(html)
-
-# Vercel Python function entrypoint.
-app = handler

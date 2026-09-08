@@ -18,6 +18,7 @@ A release certification is PASS only when all of the following hold:
 10. Gurobi's reported PWL objective is within the same release tolerance of the exact analytical objective at its returned decision.
 11. If a base PWL mesh misses the release tolerance, deterministic refinement is attempted at 5001, 10001 and 20001 points.
 12. A JSON artifact records the complete certification run, including the exact commit, failures and maxima.
+13. The certification scripts themselves pass the repository self-audit before the solver gate is considered reachable.
 
 ## Numerical release policy
 

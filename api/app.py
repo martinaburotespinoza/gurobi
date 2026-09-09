@@ -101,9 +101,18 @@ class SolveRequest(BaseModel):
         scenario = {key: data[key] for key in scenario_fields if key in data}
         if not scenario:
             return data
-        cold = float(scenario.get("p_cold", 0)) > 0
-        scenario.setdefault("p_hot", 0.7 if cold else 1.0)
-        scenario.setdefault("p_cold", 0.3 if cold else 0.0)
+
+        # Public flat payloads use the R2 game default of 75/25. When only one
+        # probability is supplied, infer the other as its exact complement.
+        has_hot = "p_hot" in scenario
+        has_cold = "p_cold" in scenario
+        if not has_hot and not has_cold:
+            scenario["p_hot"], scenario["p_cold"] = 0.75, 0.25
+        elif has_hot and not has_cold:
+            scenario["p_cold"] = 1.0 - float(scenario["p_hot"])
+        elif has_cold and not has_hot:
+            scenario["p_hot"] = 1.0 - float(scenario["p_cold"])
+
         scenario.setdefault("revenue_cold", scenario.get("revenue_hot", 0.0))
         scenario.setdefault("cost_hot", 0.0)
         scenario.setdefault("cost_cold", 0.0)

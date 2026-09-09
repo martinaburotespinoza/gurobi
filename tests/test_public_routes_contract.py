@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -15,12 +16,30 @@ def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
     assert '"destination":"/web/capture.html"' in text
     assert '"source":"/api/:path*"' not in text
 
-    import json
     config = json.loads(text)
     rewrites = {item["source"]: item["destination"] for item in config["rewrites"]}
     assert rewrites["/capture"] == "/web/capture.html"
     assert rewrites["/capture/"] == "/web/capture.html"
-    assert rewrites["/"] == "/web/r2-cockpit.html"
+    assert rewrites["/"] == "/api/index.py/r2-cockpit"
+
+
+def test_r2_cockpit_is_served_by_fastapi_entrypoint():
+    response = TestClient(ui_app).get("/r2-cockpit")
+    assert response.status_code == 200
+    text = response.text
+    required = [
+        "ROUND 2 · DISTRIBUCIÓN DE DEMANDA",
+        "Café caliente",
+        "Café frío",
+        "p_hot",
+        "p_cold",
+        "75 / 25",
+        "50 / 50",
+        "25 / 75",
+        "100 / 0",
+    ]
+    missing = [marker for marker in required if marker not in text]
+    assert not missing, missing
 
 
 def test_public_ui_is_not_empty_and_has_eight_rounds():

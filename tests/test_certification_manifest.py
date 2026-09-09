@@ -9,4 +9,4 @@ def test_certification_manifest_cannot_claim_release_pass_without_final_gate():
     assert manifest["anti_false_positive"]["synthetic_r5_r8_can_promote"] is False
     assert manifest["anti_false_positive"]["dirty_release_tree_can_certify"] is False
     assert manifest["anti_false_positive"]["pwl_only_can_certify"] is False
-    assert manifest["gates"]["r9_release"] == "PENDING_LOCAL_LICENSED_RUN"
+    assert manifest["gates"]["r9_release"] == "PENDING_POST_PATCH_LOCAL_LICENSED_RUN"

@@ -1,0 +1,55 @@
+name: Gurobean R9 Licensed Certification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r9-licensed-certification:
+    runs-on: ubuntu-latest
+    env:
+      GRB_WLSACCESSID: ${{ secrets.GRB_WLSACCESSID }}
+      GRB_WLSSECRET: ${{ secrets.GRB_WLSSECRET }}
+      GRB_LICENSEID: ${{ secrets.GRB_LICENSEID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Verify license credentials are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GRB_WLSACCESSID" || { echo 'GRB_WLSACCESSID secret is missing.'; exit 2; }
+          test -n "$GRB_WLSSECRET" || { echo 'GRB_WLSSECRET secret is missing.'; exit 2; }
+          test -n "$GRB_LICENSEID" || { echo 'GRB_LICENSEID secret is missing.'; exit 2; }
+          echo 'Gurobi WLS credentials are configured.'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[test]'
+      - run: pip install 'gurobipy>=13,<14'
+      - name: Verify licensed Gurobi runtime
+        run: python scripts/check_gurobi.py
+      - name: Run strict R9 release certification
+        run: python scripts/r9_release.py
+      - name: Run final live-test gate
+        run: python scripts/final_live_test_gate.py
+      - name: Verify source tree remains clean except generated R9 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain
+          if git status --porcelain | grep -v 'r9_release_certification.json' | grep -q .; then
+            echo 'Unexpected source changes detected after certification.'
+            exit 1
+          fi
+      - name: Upload R9 certification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: gurobean-r9-certified-release
+          path: r9_release_certification.json
+          retention-days: 90

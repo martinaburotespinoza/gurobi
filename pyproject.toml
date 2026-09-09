@@ -25,3 +25,6 @@ pythonpath = ["."]
 
 [tool.setuptools.packages.find]
 include = ["gurobean*", "api*"]
+
+[tool.vercel]
+entrypoint = "api/index.py"

@@ -17,15 +17,20 @@ def test_r2_cockpit_contains_editable_hot_cold_distribution_controls():
     assert "100 %" in text
 
 
-def test_root_serves_static_r2_cockpit_and_api_allows_same_origin_embedding():
+def test_root_serves_static_decision_cockpit_and_api_allows_same_origin_embedding():
     config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     rewrites = config["rewrites"]
     assert "/" not in {r["source"] for r in rewrites}
+    root = ROOT / "index.html"
     cockpit = ROOT / "web" / "r2-cockpit.html"
+    assert root.is_file()
     assert cockpit.is_file()
+    root_text = root.read_text(encoding="utf-8")
     cockpit_text = cockpit.read_text(encoding="utf-8")
-    assert "Decision Cockpit" in cockpit_text
-    assert "ROUND 2 · DISTRIBUCIÓN DE DEMANDA" in cockpit_text
+    for marker in ("Decision Cockpit", "ROUND 2 · DISTRIBUCIÓN DE DEMANDA", "p_hot", "p_cold"):
+        assert marker in root_text
+        assert marker in cockpit_text
+    assert 'src="/api/"' in root_text
     headers = config["headers"]
     api_headers = next(item for item in headers if item["source"] == "/api/(.*)")["headers"]
     assert {h["key"]: h["value"] for h in api_headers}["X-Frame-Options"] == "SAMEORIGIN"

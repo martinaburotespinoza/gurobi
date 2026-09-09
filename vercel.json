@@ -1,16 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "functions": {"api/index.py": {"maxDuration": 300}},
+  "functions": {"api/index.py": {"maxDuration": 300}, "api/ui.py": {"maxDuration": 60}},
   "routes": [
     {"src":"/api/(.*)","dest":"/api/index.py"},
     {"src":"/favicon.ico","dest":"/web/favicon.svg"},
     {"src":"/favicon.svg","dest":"/web/favicon.svg"},
     {"src":"/capture","dest":"/web/capture.html"},
     {"src":"/capture/","dest":"/web/capture.html"},
-    {"src":"/app","dest":"/web/index.html"},
-    {"src":"/app/","dest":"/web/index.html"},
-    {"src":"/","dest":"/web/index.html"}
+    {"src":"/app","dest":"/api/ui.py"},
+    {"src":"/app/","dest":"/api/ui.py"},
+    {"src":"/","dest":"/api/ui.py"}
   ],
   "headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}]
 }

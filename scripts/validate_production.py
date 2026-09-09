@@ -22,17 +22,14 @@ def _http_json(base_url: str, path: str, *, method: str = "GET", payload: dict |
     body = json.dumps(payload, separators=(",", ":")) if payload is not None else None
 
     # Vercel production deployments may have Deployment Protection enabled. In CI,
-    # use `vercel curl`, which automatically obtains the protection-bypass token.
+    # use `vercel curl`, which authenticates with Vercel and bypasses protection.
     if os.environ.get("VERCEL_PROTECTED_CI") == "1":
         token = os.environ.get("VERCEL_TOKEN")
         if not token:
             raise RuntimeError("VERCEL_TOKEN is required for protected production validation")
-        args = [
-            "npx", "--yes", "vercel@latest", "curl", path,
-            "--deployment", base_url,
-            "--token", token,
-            "-sS",
-        ]
+        # Native curl syntax is supported by current Vercel CLI. Do not use -sS:
+        # Vercel CLI reserves -S for --scope.
+        args = ["npx", "--yes", "vercel@latest", "curl", url, "--token", token]
         if method != "GET":
             args += ["-X", method]
         if payload is not None:
@@ -44,7 +41,6 @@ def _http_json(base_url: str, path: str, *, method: str = "GET", payload: dict |
                 if completed.returncode:
                     raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or f"vercel curl exit {completed.returncode}")
                 output = completed.stdout.strip()
-                # CLI output can contain informational lines; locate the JSON response.
                 for candidate in reversed(output.splitlines()):
                     candidate = candidate.strip()
                     if not candidate:

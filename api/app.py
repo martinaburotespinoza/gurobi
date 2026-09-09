@@ -14,7 +14,7 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-API_VERSION = "0.3.3"
+API_VERSION = "0.3.4"
 RELEASE_MARKER = "r9-release-candidate"
 
 app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
@@ -80,8 +80,6 @@ class DynamicInput(BaseModel):
             self.service_rate_max = self.service_rate_base
         if self.warmup_hours >= self.hours:
             raise ValueError("warmup_hours must be smaller than hours")
-        if self.arrival_reference_rate > self.arrival_baseline_rate:
-            raise ValueError("arrival_reference_rate must be <= arrival_baseline_rate")
         return self
 
 class SolveRequest(BaseModel):

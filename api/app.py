@@ -1,24 +1,24 @@
 from __future__ import annotations
 
 from math import isfinite
-from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
 from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
+from api.ui import ui as render_ui
 
 API_VERSION = "0.3.3"
 RELEASE_MARKER = "r9-release-candidate"
 
 app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+
 
 class ScenarioInput(BaseModel):
     lambda_total: float = Field(ge=0)
@@ -45,6 +45,7 @@ class ScenarioInput(BaseModel):
         if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
             raise ValueError("p_hot + p_cold must equal 1")
         return self
+
 
 class DynamicInput(BaseModel):
     arrival_baseline_rate: float = Field(default=60.0, gt=0)
@@ -74,9 +75,6 @@ class DynamicInput(BaseModel):
             raise ValueError("dynamic numeric values must be finite")
         if self.markup_max <= self.markup_min:
             raise ValueError("markup_max must be greater than markup_min")
-        # Be tolerant of an older cached frontend. The service base must always
-        # be feasible; expand the bounds to include it rather than rejecting a
-        # stale payload with HTTP 422.
         if self.service_rate_base < self.service_rate_min:
             self.service_rate_min = self.service_rate_base
         if self.service_rate_base > self.service_rate_max:
@@ -86,6 +84,7 @@ class DynamicInput(BaseModel):
         if self.arrival_reference_rate > self.arrival_baseline_rate:
             raise ValueError("arrival_reference_rate must be <= arrival_baseline_rate")
         return self
+
 
 class SolveRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
@@ -127,6 +126,7 @@ class SolveRequest(BaseModel):
             self.dynamic = self.dynamic.model_copy(update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)})
         return self
 
+
 class EvaluateRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
     scenario: ScenarioInput
@@ -150,31 +150,34 @@ class EvaluateRequest(BaseModel):
             raise ValueError("warmup_hours must be smaller than hours")
         return self
 
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
+
 
 @app.get("/")
 @app.get("/api/")
 def root():
-    frontend = Path(__file__).resolve().parent.parent / "web" / "index.html"
-    if not frontend.is_file():
-        raise HTTPException(status_code=500, detail="web/index.html not found")
-    return FileResponse(frontend, media_type="text/html")
+    return render_ui()
+
 
 @app.get("/health")
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "service": "gurobean-engine", "version": API_VERSION, "release_marker": RELEASE_MARKER, "ai": "grounded-local"}
 
+
 @app.get("/metadata")
 @app.get("/api/metadata")
 def metadata() -> dict:
     return {"rounds": {"implemented": [1, 2, 3, 4, 5, 6, 7, 8], "analytical_gurobi_certified": [1, 2, 3, 4], "simulation_enabled": [5, 6, 7, 8], "formal_game_certification_required": [5, 6, 7, 8]}, "backends": ["scipy", "gurobi", "closed_form", "simulation"], "gurobi_backend": "solver-backed-pwl-for-r1-r4", "gurobi_license_required": True, "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search", "evaluation_backend": "repeated-simulation-with-95ci", "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True}, "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate."}
 
+
 @app.get("/ai/context")
 @app.get("/api/ai/context")
 def ai_context() -> dict:
     return evidence_context()
+
 
 @app.post("/ai/ask")
 @app.post("/api/ai/ask")
@@ -183,6 +186,7 @@ def ai_ask(request: AskRequest) -> dict:
         return ask_assistant(request.question)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
 
 @app.post("/solve")
 @app.post("/api/solve")
@@ -207,6 +211,7 @@ def solve(request: SolveRequest) -> dict:
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"ok": True, "round": request.round_number, "result": result}
+
 
 @app.post("/evaluate")
 @app.post("/api/evaluate")

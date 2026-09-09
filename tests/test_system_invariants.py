@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
-from gurobean.model import Scenario
+from gurobean.model import Scenario, expected_newsvendor_profit
 from gurobean.simulation import GurobeanSimulationConfig, _draw_order_size, simulate_gurobean
 
 
@@ -78,3 +78,25 @@ def test_dynamic_round_returns_resource_feasible_decision():
     assert sc.beans_hot * result["Q_hot"] + sc.beans_cold * result["Q_cold"] <= sc.beans_available + 1e-9
     assert sc.water_hot * result["Q_hot"] + sc.water_cold * result["Q_cold"] <= sc.water_available + 1e-9
     assert result["objective"] == result["expected_profit"]
+
+
+@pytest.mark.parametrize("field", [
+    "lambda_total", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold",
+    "salvage_hot", "salvage_cold", "beans_hot", "beans_cold", "water_hot", "water_cold",
+])
+def test_scenario_rejects_non_finite_economic_inputs(field):
+    values = _scenario().__dict__.copy()
+    values[field] = np.nan
+    with pytest.raises(ValueError, match=field):
+        Scenario(**values)
+
+
+def test_scenario_allows_infinite_resource_availability_but_not_nan():
+    sc = _scenario()
+    Scenario(**{**sc.__dict__, "beans_available": np.inf, "water_available": np.inf})
+    with pytest.raises(ValueError, match="beans_available"):
+        Scenario(**{**sc.__dict__, "beans_available": np.nan})
+
+
+def test_zero_demand_profit_is_exactly_zero():
+    assert expected_newsvendor_profit(0.0, 0.0, 10.0, 2.0, 1.0) == 0.0

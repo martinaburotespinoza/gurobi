@@ -20,11 +20,18 @@ def main() -> None:
     html = module.ui().body.decode("utf-8")
     ui_source = UI_PATH.read_text(encoding="utf-8")
 
+    # Validate the current delivered cockpit contract rather than stale
+    # typography values from an earlier UI generation.
     required_html = (
         "Decision Cockpit",
         "gurobean-readable-ui",
-        ".metric strong{font-size:24px!important}",
-        ".field input,.field select,.chat input{font-size:13px!important",
+        ".metric strong{font-size:30px!important}",
+        ".field input,.field select,.chat input{font-size:15px!important",
+        "☕",
+        "🧊",
+        "📈",
+        "🏆",
+        "gurobean-visual-patch",
     )
     missing_html = [token for token in required_html if token not in html]
     if missing_html:
@@ -44,6 +51,15 @@ def main() -> None:
     missing_adapter = [token for token in required_adapter if token not in ui_source]
     if missing_adapter:
         raise SystemExit(f"PUBLIC UI DELIVERY SMOKE: FAIL — missing API adapter contract: {missing_adapter}")
+
+    required_headers = (
+        '"Cache-Control":"no-store, no-cache, must-revalidate, max-age=0"',
+        '"CDN-Cache-Control":"no-store"',
+        '"Vercel-CDN-Cache-Control":"no-store"',
+    )
+    missing_headers = [token for token in required_headers if token not in ui_source]
+    if missing_headers:
+        raise SystemExit(f"PUBLIC UI DELIVERY SMOKE: FAIL — missing freshness headers: {missing_headers}")
 
     print("PUBLIC UI DELIVERY SMOKE: PASS")
 

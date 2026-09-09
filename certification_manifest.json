@@ -1,15 +1,17 @@
 {
   "schema": "gurobean.certification-manifest.v2",
   "release_line": "r9-1000-certification",
-  "status": "READY_FOR_MANDATORY_LOCAL_GUROBI_GATE",
+  "status": "POST_PATCH_VALIDATION_REQUIRED",
   "gates": {
     "r1_r4_reference": "PASS",
     "r1_r4_reference_ci": "PASS",
     "r8_core_math_validation": "PASS",
-    "r9_end_to_end_reference": "PASS",
-    "self_audit": "PASS",
-    "real_gurobi_binding_and_license": "PENDING_LOCAL_LICENSED_RUN",
-    "r9_release": "PENDING_LOCAL_LICENSED_RUN",
+    "r9_end_to_end_reference": "PASS_PRE_PATCH",
+    "self_audit": "PASS_PRE_PATCH",
+    "simulation_hourly_freshness": "PATCHED_POST_VALIDATION_REQUIRED",
+    "oos_rmse_threshold": "REQUIRED_EXPLICITLY_FOR_PROMOTION",
+    "real_gurobi_binding_and_license": "PENDING_POST_PATCH_LOCAL_LICENSED_RUN",
+    "r9_release": "PENDING_POST_PATCH_LOCAL_LICENSED_RUN",
     "r5_markup_published_relationship": "IMPLEMENTED_BUT_CALIBRATION_GATED",
     "r6_balking": "CALIBRATION_GATED",
     "r7_multi_cup": "CALIBRATION_GATED",
@@ -20,12 +22,14 @@
     "synthetic_r5_r8_can_promote": false,
     "dirty_release_tree_can_certify": false,
     "pwl_only_can_certify": false,
-    "reference_only_can_certify": false
+    "reference_only_can_certify": false,
+    "missing_oos_rmse_threshold_can_promote": false
   },
   "required_final_outputs": [
     "GUROBI_GATE: CHECKED",
     "R9 STATUS: PASS",
-    "r9_release_certification.json with exact Git commit"
+    "r9_release_certification.json with exact Git commit",
+    "R5-R8 real-game evidence with explicit per-round OOS RMSE thresholds"
   ],
   "normative_sources": [
     "https://www.gurobi.com/academics/gurobean/game-guide",

@@ -1,8 +1,9 @@
 name: Vercel Production Deploy
 
 on:
-  push:
-    branches: [main]
+  # Production deployment is intentionally explicit. Hobby Vercel counts
+  # preview and production deployments toward its daily quota, so automatic
+  # deploys on every main commit can exhaust the quota during certification.
   workflow_dispatch:
 
 permissions:

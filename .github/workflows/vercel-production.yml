@@ -85,7 +85,18 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           html = Path("canonical-ui.html").read_text(encoding="utf-8", errors="replace")
-          required = ["gurobean-readable-ui", "gurobean-premium-visual", "gurobean-visual-patch", "☕", "🧊", "🏆", "Decision Cockpit", ".metric strong{font-size:34px!important}", ".round{min-height:104px!important"]
+          required = [
+              "gurobean-readable-ui",
+              "gurobean-premium-visual",
+              "gurobean-visual-patch",
+              "aria-label=\"Gurobean logo\"",
+              "☕",
+              "🧊",
+              "🏆",
+              "Decision Cockpit",
+              ".metric strong{font-size:40px!important}",
+              ".round{min-height:122px!important",
+          ]
           missing = [marker for marker in required if marker not in html]
           if missing:
               raise SystemExit(f"CANONICAL_UI_MARKER_FAILURE: {missing}")

@@ -20,13 +20,13 @@ def main() -> None:
     html = module.ui().body.decode("utf-8")
     ui_source = UI_PATH.read_text(encoding="utf-8")
 
-    # Validate the current delivered cockpit contract rather than stale
-    # typography values from an earlier UI generation.
+    # Validate the current delivered cockpit contract. These values intentionally
+    # match the readable/premium layer actually delivered by api/ui.py.
     required_html = (
         "Decision Cockpit",
         "gurobean-readable-ui",
-        ".metric strong{font-size:30px!important}",
-        ".field input,.field select,.chat input{font-size:15px!important",
+        ".metric strong{font-size:38px!important}",
+        ".field input,.field select,.chat input{font-size:17px!important",
         "☕",
         "🧊",
         "📈",

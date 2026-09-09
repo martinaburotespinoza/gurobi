@@ -88,15 +88,19 @@ def _stay(config: GurobeanSimulationConfig, metric: float) -> bool:
 
 
 def simulate_gurobean(config: GurobeanSimulationConfig):
-    """Continuous-time coffee-shop simulator with inventory, balking and orders.
+    """Continuous-time coffee-shop simulator with hourly-fresh inventory.
 
     Arrivals are Poisson. Preferences are sampled independently. Orders join a
     FIFO queue, may balk according to a supplied calibrated probability, and
     consume brewed inventory when service begins. Service time is exponential
-    with rate ``mu_rate`` per order. Brewing is reset at each simulated hour.
+    with rate ``mu_rate`` per order.
 
-    ``warmup_hours`` affects performance metrics only. Economic accounting still
-    covers the full requested horizon, matching the game's 120-hour score.
+    Coffee is fresh for one simulated hour: at each hour boundary any remaining
+    inventory expires as waste and the new hourly batch becomes available. This
+    prevents unsold coffee from accumulating across hours and keeps the economic
+    accounting aligned with a per-hour production decision. ``warmup_hours``
+    affects performance metrics only; economic accounting covers the full
+    requested horizon.
     """
     rng = np.random.default_rng(config.seed)
     end = config.hours * 60.0
@@ -114,25 +118,26 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
     q_area = 0.0
     busy_area = 0.0
     profit = 0.0
+    waste_hot = 0.0
+    waste_cold = 0.0
     last = 0.0
     next_brew_hour = 0.0
 
-    def add_brew() -> None:
-        nonlocal profit
-        inventory["hot"] += config.brew_hot_per_hour
-        inventory["cold"] += config.brew_cold_per_hour
+    def add_brew(*, initial: bool = False) -> None:
+        nonlocal profit, waste_hot, waste_cold, inventory
+        if not initial:
+            # The game's production decision is hourly. Remaining brewed coffee
+            # does not carry into the next hour; it is explicitly recorded as
+            # waste before the fresh batch is installed.
+            waste_hot += inventory["hot"]
+            waste_cold += inventory["cold"]
+            inventory = {"hot": 0.0, "cold": 0.0}
+        inventory["hot"] = config.brew_hot_per_hour
+        inventory["cold"] = config.brew_cold_per_hour
         profit -= config.brew_cost_hot * config.brew_hot_per_hour
         profit -= config.brew_cost_cold * config.brew_cold_per_hour
 
-    def should_stay(metric: float) -> bool:
-        if config.stay_probability is None:
-            return True
-        p = float(config.stay_probability(metric))
-        if not np.isfinite(p) or p < 0 or p > 1:
-            raise ValueError("stay_probability must return a value in [0, 1]")
-        return bool(rng.random() < p)
-
-    add_brew()
+    add_brew(initial=True)
     while t < end:
         next_brew = next_brew_hour + 60.0
         nxt = min(next_arrival, next_departure, next_brew, end)
@@ -161,13 +166,17 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
             if next_departure != inf:
                 projected_wait = max(0.0, next_departure - t) + len(queue) * (60.0 / config.mu_rate)
             metric = float(len(queue)) if config.queue_metric == "queue" else projected_wait
-            if not should_stay(metric):
-                if in_window:
-                    lost += 1
-                    lost_customers += 1
-                next_arrival = t + rng.exponential(60.0 / config.lambda_rate) if config.lambda_rate else inf
-                last = t
-                continue
+            if config.stay_probability is not None:
+                p = float(config.stay_probability(metric))
+                if not np.isfinite(p) or p < 0 or p > 1:
+                    raise ValueError("stay_probability must return a value in [0, 1]")
+                if not bool(rng.random() < p):
+                    if in_window:
+                        lost += 1
+                        lost_customers += 1
+                    next_arrival = t + rng.exponential(60.0 / config.lambda_rate) if config.lambda_rate else inf
+                    last = t
+                    continue
             queue.append((t, drink, order_size))
             if next_departure == inf:
                 next_departure = t + rng.exponential(60.0 / config.mu_rate)
@@ -198,6 +207,12 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
             continue
         break
 
+    # Inventory left at the end of the horizon is also expired/waste. It cannot
+    # be carried into a future game period.
+    waste_hot += inventory["hot"]
+    waste_cold += inventory["cold"]
+    inventory = {"hot": 0.0, "cold": 0.0}
+
     measured_hours = max(config.hours - config.warmup_hours, 1)
     effective_minutes = measured_hours * 60.0
     if config.barista_cost_per_hour:
@@ -215,8 +230,10 @@ def simulate_gurobean(config: GurobeanSimulationConfig):
         "profit": float(profit),
         "served_cups": int(served_cups),
         "lost_customers": int(lost_customers),
-        "inventory_hot_end": float(inventory["hot"]),
-        "inventory_cold_end": float(inventory["cold"]),
+        "inventory_hot_end": 0.0,
+        "inventory_cold_end": 0.0,
+        "waste_hot": float(waste_hot),
+        "waste_cold": float(waste_cold),
         "seed": int(config.seed),
     }
 

@@ -116,6 +116,13 @@ def test_evaluate_contract():
             "service_rate": 65.0,
             "replications": 1,
             "hours": 2,
+            "dynamic": {
+                "hours": 2,
+                "warmup_hours": 0,
+                "seed": 42,
+                "replications": 1,
+                "coordinate_points": 3,
+            },
         },
     )
     assert response.status_code == 200

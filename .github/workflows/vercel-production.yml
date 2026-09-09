@@ -9,8 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      VERCEL_ORG_ID: team_SX9pUgbdxVl9MoaMMoTVDbue
-      VERCEL_PROJECT_ID: prj_97BMIoW2FZ7QO9OBxaqDybkMqall
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +24,18 @@ jobs:
           fi
           echo "VERCEL_TOKEN is available to the deployment job."
       - name: Deploy production
-        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" --name gurobean-engine-v2-6 2>&1 | tee vercel-deploy.log
+          URL=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
+          if [ -z "$URL" ]; then
+            echo "Could not determine the production deployment URL."
+            cat vercel-deploy.log
+            exit 1
+          fi
+          echo "GUROBEAN_PRODUCTION_URL=$URL" >> "$GITHUB_ENV"
+          echo "Production deployment URL: $URL"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

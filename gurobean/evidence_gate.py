@@ -8,7 +8,8 @@ unspecified provenance is rejected before statistical calibration runs.
 
 The strict gate also performs a deterministic holdout validation. This prevents
 an in-sample fit from being treated as production evidence merely because its
-training RMSE is small.
+training RMSE is small. A quantitative out-of-sample threshold is mandatory for
+promotion; the gate never invents an acceptable error level for the caller.
 """
 
 from typing import Sequence
@@ -53,8 +54,6 @@ def _predict(fit: FitResult, observation: Observation) -> float:
         eta = np.clip(p["a"] + p["b"] * float(observation.variables[x_key]), -40.0, 40.0)
         return float(1.0 / (1.0 + np.exp(-eta)))
     if fit.round_number == 7:
-        # R7 fits are distributional. Use the fitted expected order size as the
-        # deterministic point prediction for the held-out observation.
         if fit.family == "shifted_poisson":
             return 1.0 + max(0.0, p["theta"])
         prob = min(max(p["p"], 1e-12), 1.0 - 1e-12)
@@ -109,7 +108,12 @@ def strict_calibration_gate(
     require_monotone: bool = False,
     require_out_of_sample: bool = True,
 ) -> PromotionDecision:
-    """Apply provenance, statistical and deterministic holdout validation."""
+    """Apply provenance, statistical and deterministic holdout validation.
+
+    ``max_rmse`` is mandatory whenever out-of-sample validation is required.
+    This makes promotion reproducible and prevents an unspecified/floating
+    statistical acceptance criterion from being interpreted as certification.
+    """
     if not observations:
         return PromotionDecision(False, 0, None, "no_observations", {})
 
@@ -131,6 +135,12 @@ def strict_calibration_gate(
     if not results or any(r.round_number != round_number for r in results):
         return PromotionDecision(False, round_number, None, "fit_round_mismatch", {})
 
+    if require_out_of_sample:
+        if max_rmse is None:
+            return PromotionDecision(False, round_number, None, "missing_oos_rmse_threshold", {})
+        if not np.isfinite(float(max_rmse)) or float(max_rmse) < 0:
+            return PromotionDecision(False, round_number, None, "invalid_oos_rmse_threshold", {})
+
     base = calibration_gate(
         observations,
         results,
@@ -151,5 +161,7 @@ def strict_calibration_gate(
         metrics["out_of_sample_family"] = oos_family
         if not np.isfinite(oos_rmse):
             return PromotionDecision(False, round_number, base.family, "out_of_sample_non_finite", metrics)
+        if oos_rmse > float(max_rmse):
+            return PromotionDecision(False, round_number, base.family, "out_of_sample_rmse_exceeded", metrics)
 
     return PromotionDecision(True, round_number, base.family, "promotion_gate_passed", metrics)

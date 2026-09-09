@@ -74,9 +74,6 @@ class DynamicInput(BaseModel):
             raise ValueError("dynamic numeric values must be finite")
         if self.markup_max <= self.markup_min:
             raise ValueError("markup_max must be greater than markup_min")
-        # Be tolerant of an older cached frontend. The service base must always
-        # be feasible; expand the bounds to include it rather than rejecting a
-        # stale payload with HTTP 422.
         if self.service_rate_base < self.service_rate_min:
             self.service_rate_min = self.service_rate_base
         if self.service_rate_base > self.service_rate_max:
@@ -206,6 +203,10 @@ def solve(request: SolveRequest) -> dict:
         result = solve_dynamic_round(sc, request.round_number, dp)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    result = dict(result)
+    result["operational"] = True
+    result["formal_game_certified"] = False
+    result["certification_status"] = "CALIBRATION_GATED"
     return {"ok": True, "round": request.round_number, "result": result}
 
 @app.post("/evaluate")

@@ -1,16 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "functions": {"api/index.py": {"maxDuration": 300}, "api/ui.py": {"maxDuration": 60}},
-  "routes": [
-    {"src":"/api/(.*)","dest":"/api/index.py"},
-    {"src":"/favicon.ico","dest":"/web/favicon.svg"},
-    {"src":"/favicon.svg","dest":"/web/favicon.svg"},
-    {"src":"/capture","dest":"/web/capture.html"},
-    {"src":"/capture/","dest":"/web/capture.html"},
-    {"src":"/app","dest":"/api/ui.py"},
-    {"src":"/app/","dest":"/api/ui.py"},
-    {"src":"/","dest":"/api/ui.py"}
+  "functions": {
+    "api/index.py": {"maxDuration": 300},
+    "api/ui.py": {"maxDuration": 60}
+  },
+  "rewrites": [
+    {"source":"/api/:path*","destination":"/api/index.py"},
+    {"source":"/favicon.ico","destination":"/web/favicon.svg"},
+    {"source":"/favicon.svg","destination":"/web/favicon.svg"},
+    {"source":"/capture","destination":"/web/capture.html"},
+    {"source":"/capture/","destination":"/web/capture.html"},
+    {"source":"/app","destination":"/api/ui.py"},
+    {"source":"/app/","destination":"/api/ui.py"},
+    {"source":"/","destination":"/api/ui.py"}
   ],
   "headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}]
 }

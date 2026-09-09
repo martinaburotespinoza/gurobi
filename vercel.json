@@ -11,9 +11,9 @@
     { "src": "/gurobean-logo.svg", "dest": "/web/gurobean-logo.svg" },
     { "src": "/capture", "dest": "/web/capture.html" },
     { "src": "/capture/", "dest": "/web/capture.html" },
-    { "src": "/app", "dest": "/web/index.html" },
-    { "src": "/app/", "dest": "/web/index.html" },
-    { "src": "/", "dest": "/web/index.html" }
+    { "src": "/app", "dest": "/api/index.py" },
+    { "src": "/app/", "dest": "/api/index.py" },
+    { "src": "/", "dest": "/api/index.py" }
   ],
   "headers": [
     {

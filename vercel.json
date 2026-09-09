@@ -11,9 +11,9 @@
     {"source":"/favicon.svg","destination":"/web/favicon.svg"},
     {"source":"/capture","destination":"/web/capture.html"},
     {"source":"/capture/","destination":"/web/capture.html"},
-    {"source":"/app","destination":"/api/ui.py"},
-    {"source":"/app/","destination":"/api/ui.py"},
-    {"source":"/","destination":"/api/ui.py"}
+    {"source":"/app","destination":"/api/index.py"},
+    {"source":"/app/","destination":"/api/index.py"},
+    {"source":"/","destination":"/api/index.py"}
   ],
   "headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}]
 }

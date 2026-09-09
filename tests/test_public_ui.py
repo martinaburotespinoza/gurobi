@@ -20,7 +20,7 @@ def test_public_ui_is_rendered_with_current_cockpit_contract():
     assert "R1" in html and "R8" in html
     assert "gurobean-readable-ui" in html
     assert "Q hot" in html and "Q cold" in html
-    assert "/capture" in html
+    assert "Capturar juego en vivo" in html
 
 
 def test_public_ui_does_not_expose_r9_as_a_game_round():

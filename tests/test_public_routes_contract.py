@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
     text = (ROOT / "vercel.json").read_text(encoding="utf-8")
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'entrypoint = "api/index.py"' in pyproject
+    assert 'entrypoint = "api.index:app"' in pyproject
     assert '"source":"/capture"' in text
     assert '"destination":"/web/capture.html"' in text
     assert '"source":"/api/:path*"' not in text

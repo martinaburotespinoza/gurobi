@@ -23,6 +23,27 @@ def test_vercel_routes_expose_capture_without_root_framework_rewrite():
     assert "/" not in rewrites
 
 
+def test_static_root_is_the_decision_cockpit_entrypoint():
+    root = ROOT / "index.html"
+    assert root.is_file()
+    text = root.read_text(encoding="utf-8")
+    required = [
+        "Decision Cockpit",
+        "ROUND 2 · DISTRIBUCIÓN DE DEMANDA",
+        'src=\"/api/\"',
+        "Café caliente",
+        "Café frío",
+        "p_hot",
+        "p_cold",
+        "75 / 25",
+        "50 / 50",
+        "25 / 75",
+        "100 / 0",
+    ]
+    missing = [marker for marker in required if marker not in text]
+    assert not missing, missing
+
+
 def test_r2_cockpit_is_served_by_fastapi_entrypoint():
     response = TestClient(ui_app).get("/r2-cockpit")
     assert response.status_code == 200

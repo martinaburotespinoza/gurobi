@@ -15,6 +15,7 @@ import numpy as np
 
 from .model import Scenario, _feasible
 from .simulation import GurobeanSimulationConfig, simulate_gurobean
+from .full_rounds import DynamicRoundParams
 
 
 @dataclass(frozen=True)
@@ -133,11 +134,14 @@ def evaluate_scenario(
     hours: int = 120,
     warmup_hours: int = 0,
     barista_cost_per_hour: float = 0.0,
+    dynamic: DynamicRoundParams | None = None,
+    round_number: int = 1,
 ) -> EvaluationSummary:
     """Evaluate a concrete decision under the supplied scenario.
 
-    Markup is an additive amount: price = coffee cost + markup, matching the
-    published Gurobean model. Resource feasibility is checked before simulation.
+    For R5-R8, ``dynamic`` activates the same arrival, balking, multi-cup and
+    service-cost rules used by the operational optimizer. For R1-R4 the legacy
+    scenario-rate evaluator remains available for validation compatibility.
     """
     if not np.isfinite(markup) or markup < 0:
         raise ValueError("markup must be finite and >= 0")
@@ -147,6 +151,41 @@ def evaluate_scenario(
         raise ValueError("service_rate must be > 0")
     if not _feasible(q_hot, q_cold, scenario):
         raise ValueError("brew quantities violate the supplied resource constraints")
+
+    if round_number >= 5 and dynamic is not None:
+        arrival = dynamic.arrival_rate(markup)
+        stay = dynamic.stay_probability if round_number >= 6 else None
+        order_sampler = None
+        if round_number >= 7:
+            def order_sampler(rng: np.random.Generator) -> int:
+                return 1 + int(rng.poisson(dynamic.multi_cup_theta))
+        effective_barista_cost = dynamic.service_cost(service_rate) if round_number >= 8 else 0.0
+        if round_number >= 8 and barista_cost_per_hour != 0.0:
+            effective_barista_cost = barista_cost_per_hour
+
+        def factory(rep_seed: int) -> GurobeanSimulationConfig:
+            return GurobeanSimulationConfig(
+                hours=hours,
+                warmup_hours=warmup_hours,
+                seed=rep_seed,
+                markup=markup,
+                lambda_rate=arrival,
+                p_hot=scenario.p_hot,
+                p_cold=scenario.p_cold,
+                mu_rate=service_rate,
+                brew_hot_per_hour=q_hot,
+                brew_cold_per_hour=q_cold,
+                revenue_hot=scenario.cost_hot + markup,
+                revenue_cold=scenario.cost_cold + markup,
+                brew_cost_hot=scenario.cost_hot,
+                brew_cost_cold=scenario.cost_cold,
+                barista_cost_per_hour=effective_barista_cost,
+                stay_probability=stay,
+                order_size_sampler=order_sampler,
+                queue_metric="queue",
+            )
+
+        return evaluate_candidate(factory, replications=replications, seed=seed)
 
     def factory(rep_seed: int) -> GurobeanSimulationConfig:
         return GurobeanSimulationConfig(

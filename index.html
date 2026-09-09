@@ -3,75 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Gurobean Engine v2_6 — optimización, simulación y evaluación">
+<meta name="description" content="Gurobean Engine v2_6 — Decision Cockpit">
 <meta name="robots" content="noindex">
-<title>Gurobean Engine v2_6</title>
+<title>Gurobean Engine v2_6 — Decision Cockpit</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#24344d;background:#f7f4ed}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(180deg,#fbfaf6,#eef5fa 65%,#f7f3eb)}main{max-width:1000px;margin:auto;padding:28px 20px 48px}.card{background:#fff;border:1px solid #dfe6ed;border-radius:24px;padding:26px;box-shadow:0 18px 50px rgba(42,65,91,.09)}h1{margin:0;color:#173b68;font-size:30px}h1 span{color:#8190a1;font-size:16px}p{color:#718198;line-height:1.55}.status{margin:18px 0;padding:12px 14px;border-radius:12px;background:#f4f7f9}.ok{color:#24765a;background:#eef9f4}.bad{color:#a43d45;background:#fff1f1}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:11px;font-weight:800;color:#63758c;margin-bottom:6px}.field input{width:100%;padding:11px;border:1px solid #d7e0e7;border-radius:11px;background:#fbfcfd;font:inherit}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}.btn,a{display:inline-block;border:0;border-radius:12px;padding:12px 16px;background:#173b68;color:#fff;text-decoration:none;font-weight:900;cursor:pointer}.secondary{background:#edf5fa;color:#38526e}.result{margin-top:18px;background:#f7f9fa;border:1px solid #dfe6ed;border-radius:14px;padding:15px;min-height:100px;white-space:pre-wrap;word-break:break-word;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.hint{font-size:11px}.footer{margin-top:16px;text-align:center;font-size:10px;color:#8b99a7}@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:14px}}
+html,body{margin:0;width:100%;height:100%;background:#050814;overflow:hidden;font-family:Manrope,system-ui,sans-serif}
+#cockpit{width:100%;height:100%;border:0;display:block}
+#r2-overlay{position:fixed;z-index:20;display:none;left:50%;transform:translateX(-50%);top:calc(50% - 235px);width:min(720px,calc(100vw - 40px));box-sizing:border-box;padding:18px;border:1px solid rgba(104,220,255,.28);border-radius:20px;background:linear-gradient(145deg,rgba(8,18,33,.98),rgba(9,14,28,.96));box-shadow:0 25px 80px rgba(0,0,0,.5),0 0 45px rgba(104,220,255,.08);color:#f2f7ff;backdrop-filter:blur(18px)}
+#r2-overlay .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.kicker{font:700 10px monospace;letter-spacing:1.7px;color:#68dcff}.title{font-size:19px;font-weight:800;margin-top:5px}.desc{font-size:11px;color:#8fa1b8;line-height:1.55;margin-top:5px}.total{font:800 12px monospace;padding:8px 10px;border-radius:10px;border:1px solid rgba(92,224,178,.2);color:#5ce0b2;background:rgba(92,224,178,.05);white-space:nowrap}.total.bad{color:#ff788d;border-color:rgba(255,120,141,.25);background:rgba(255,120,141,.05)}.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.drink{border:1px solid rgba(157,188,224,.14);border-radius:15px;padding:13px;background:rgba(255,255,255,.025)}.drink .label{font-size:11px;font-weight:800;color:#b9c9dc}.row{display:grid;grid-template-columns:42px 1fr 42px;gap:8px;align-items:center;margin-top:9px}.step{height:40px;border:1px solid rgba(104,220,255,.18);border-radius:10px;background:#0b1626;color:#dce9f8;font-size:18px;font-weight:800}.step:hover{border-color:#68dcff;background:#12243a}.pct{height:40px;width:100%;box-sizing:border-box;border:1px solid rgba(157,188,224,.14);border-radius:10px;background:#050c17;color:#fff;text-align:center;font:800 16px monospace;outline:0}.pct:focus{border-color:#68dcff}.presets{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.preset{border:1px solid rgba(157,188,224,.14);border-radius:9px;background:#0b1626;color:#9db3ca;padding:7px 10px;font-size:10px;font-weight:800}.preset:hover{border-color:#68dcff;color:#fff}.help{margin-top:11px;font-size:10px;color:#687c95;line-height:1.5}.apply{margin-top:12px;width:100%;height:42px;border:1px solid #6aa3ff;border-radius:11px;background:linear-gradient(135deg,#3d72ff,#5c9aff);color:#fff;font-weight:800;cursor:pointer}.apply:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:650px){#r2-overlay{top:auto;bottom:12px}.choices{grid-template-columns:1fr}.title{font-size:17px}}
 </style>
 </head>
 <body>
-<main>
-<section class="card">
-<h1>☕ Gurobean Engine <span>v2_6</span></h1>
-<p>Motor de optimización matemática, simulación y evaluación reproducible. Esta consola raíz es independiente de la interfaz avanzada y permite comprobar que la API funciona.</p>
-<div id="status" class="status">Conectando con el motor…</div>
-<div class="grid">
-<div class="field"><label>Demanda λ (clientes/h)</label><input id="lambda" type="number" min="0" step="0.1" value="15"></div>
-<div class="field"><label>Proporción caliente</label><input id="phot" type="number" min="0" max="1" step="0.01" value="1"></div>
-<div class="field"><label>Precio caliente</label><input id="rh" type="number" min="0" step="0.1" value="4"></div>
-<div class="field"><label>Costo caliente</label><input id="ch" type="number" min="0" step="0.1" value="1"></div>
-<div class="field"><label>Precio frío</label><input id="rc" type="number" min="0" step="0.1" value="4"></div>
-<div class="field"><label>Costo frío</label><input id="cc" type="number" min="0" step="0.1" value="1"></div>
-<div class="field"><label>Granos disponibles</label><input id="beans" type="number" min="0" step="1" value="100"></div>
-<div class="field"><label>Agua disponible</label><input id="water" type="number" min="0" step="1" value="100"></div>
+<!-- R1 R2 R3 R4 R5 R6 R7 R8 · Decision Cockpit public entrypoint -->
+<iframe id="cockpit" src="/api/" title="Gurobean Decision Cockpit"></iframe>
+<div id="r2-overlay" aria-label="Configuración de demanda R2">
+  <div class="head"><div><div class="kicker">ROUND 2 · DISTRIBUCIÓN DE DEMANDA</div><div class="title">¿Qué porcentaje de clientes pedirá cada tipo de café?</div><div class="desc">Estos porcentajes alimentan directamente <b>p_hot</b> y <b>p_cold</b> del escenario R2.</div></div><div id="total" class="total">100 %</div></div>
+  <div class="choices">
+    <div class="drink"><div class="label">☕ Café caliente</div><div class="row"><button class="step" data-target="hot" data-delta="-5">−</button><input id="hot" class="pct" type="number" min="0" max="100" step="5" value="75" aria-label="Porcentaje de café caliente"><button class="step" data-target="hot" data-delta="5">+</button></div></div>
+    <div class="drink"><div class="label">🧊 Café frío</div><div class="row"><button class="step" data-target="cold" data-delta="-5">−</button><input id="cold" class="pct" type="number" min="0" max="100" step="5" value="25" aria-label="Porcentaje de café frío"><button class="step" data-target="cold" data-delta="5">+</button></div></div>
+  </div>
+  <div class="presets"><button class="preset" data-hot="75">75 / 25</button><button class="preset" data-hot="50">50 / 50</button><button class="preset" data-hot="25">25 / 75</button><button class="preset" data-hot="100">100 / 0</button></div>
+  <div class="help">La distribución debe sumar exactamente 100 %. Al ejecutar R2, la demanda se reparte automáticamente: demanda caliente = demanda total × % caliente; demanda fría = demanda total × % frío.</div>
+  <button id="apply" class="apply">Aplicar distribución a Round 2</button>
 </div>
-<div class="actions">
-<button id="r1" class="btn" type="button">▶ Ejecutar R1</button>
-<button id="r8" class="btn" type="button">▶ Ejecutar R8</button>
-<a class="secondary" href="/app">Abrir consola avanzada</a>
-<a class="secondary" href="/capture">Capturar juego R1–R8</a>
-</div>
-<div id="result" class="result">Listo. Ejecuta una ronda.</div>
-<p class="hint">R1–R4: referencia matemática pública. R5–R8: Monte Carlo operacional. La certificación formal de R5–R8 requiere evidencia del juego real.</p>
-</section>
-<div class="footer">Gurobean Engine · release gate interno separado de las 8 rondas del juego</div>
-</main>
 <script>
 (function(){
-'use strict';
-const $=id=>document.getElementById(id);
-const status=$('status');
-const result=$('result');
-function number(id){return Number($(id).value);}
-function scenario(){
- const p=number('phot');
- return {lambda_total:number('lambda'),p_hot:p,p_cold:1-p,revenue_hot:number('rh'),revenue_cold:number('rc'),cost_hot:number('ch'),cost_cold:number('cc'),salvage_hot:0,salvage_cold:0,beans_available:number('beans'),water_available:number('water'),beans_hot:1,beans_cold:1,water_hot:1,water_cold:1};
-}
-async function health(){
- try{
-  const response=await fetch('/api/health',{cache:'no-store',headers:{Accept:'application/json'}});
-  const data=await response.json();
-  if(!response.ok||data.status!=='ok')throw new Error(data.detail||('HTTP '+response.status));
-  status.textContent='✓ Motor conectado · API operativa';
-  status.className='status ok';
- }catch(error){
-  status.textContent='✗ API no disponible · '+error.message;
-  status.className='status bad';
+ const frame=document.getElementById('cockpit'), overlay=document.getElementById('r2-overlay'), hot=document.getElementById('hot'), cold=document.getElementById('cold'), total=document.getElementById('total'), apply=document.getElementById('apply');
+ let injected=false, originalFetch=null;
+ const n=v=>Math.max(0,Math.min(100,Number(v)||0));
+ function syncFromHot(v){hot.value=n(v);cold.value=100-n(v);validate()}
+ function validate(){const h=n(hot.value),c=n(cold.value),sum=h+c,ok=Math.abs(sum-100)<1e-9;total.textContent=sum+' %';total.classList.toggle('bad',!ok);apply.disabled=!ok;return ok}
+ function show(){overlay.style.display='block'} function hide(){overlay.style.display='none'}
+ function clarifyLabels(d){
+   const rules=[
+     [/gramos\s+por\s+taza\s+caliente/i,'⚖️ Gramos de café por café caliente'],
+     [/gramos\s+por\s+taza/i,'⚖️ Gramos de café por café caliente'],
+     [/oz\s+de\s+agua\s+por\s+taza/i,'🥤 Onzas de agua por café caliente'],
+     [/onzas?\s+por\s+hot/i,'🥤 Onzas de agua por café caliente'],
+     [/gramos\s+disponibles\s*\/\s*h/i,'⚖️ Café disponible (gramos/hora)'],
+     [/gramos\s+disponibles/i,'⚖️ Café disponible (gramos/hora)'],
+     [/oz\s+disponibles\s*\/\s*h/i,'🥤 Agua disponible (onzas/hora)'],
+     [/onzas?\s+disponibles/i,'🥤 Agua disponible (onzas/hora)'],
+     [/servicio\s+base\s*\/\s*h/i,'⚡ Capacidad de servicio (clientes/hora por barista)'],
+     [/servicio\s+base/i,'⚡ Capacidad de servicio (clientes/hora por barista)'],
+     [/n[uú]mero\s+promedio.*barista/i,'⚡ Capacidad de servicio (clientes/hora por barista)'],
+     [/demanda\s*[λl]/i,'📈 Demanda λ (clientes/hora)'],
+     [/demanda/i,'📈 Demanda (clientes/hora)'],
+     [/precio\s+caliente/i,'💰 Precio por café caliente']
+   ];
+   d.querySelectorAll('.field label').forEach(label=>{const text=label.textContent||'';for(const [re,out] of rules){if(re.test(text)){label.textContent=out;break}}});
  }
-}
-async function solve(round){
- result.textContent='Ejecutando R'+round+'…';
- try{
-  const response=await fetch('/api/solve',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({round_number:round,backend:round<=4?'scipy':'simulation',scenario:scenario()})});
-  const data=await response.json();
-  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));
-  result.textContent=JSON.stringify(data,null,2);
- }catch(error){result.textContent='ERROR: '+error.message;}
-}
-$('r1').addEventListener('click',()=>solve(1));
-$('r8').addEventListener('click',()=>solve(8));
-health();
+ function inject(){
+   let w;try{w=frame.contentWindow;const d=w.document;if(!d||!d.body)return}catch(e){return}
+   clarifyLabels(w.document);
+   if(!injected){
+     originalFetch=w.fetch.bind(w);
+     w.fetch=async function(input,init){
+       try{
+         const url=typeof input==='string'?input:(input&&input.url)||'';
+         if(/\/solve(?:\?|$)/.test(url)&&Number(hot.value)+Number(cold.value)===100){
+           let body=init&&init.body;
+           if(typeof body==='string'){
+             const data=JSON.parse(body);
+             if(Number(data.round_number)===2){data.scenario=data.scenario||{};data.scenario.p_hot=n(hot.value)/100;data.scenario.p_cold=n(cold.value)/100;body=JSON.stringify(data);init=Object.assign({},init,{body})}
+           }else if(input instanceof w.Request){
+             const text=await input.clone().text();const data=JSON.parse(text);
+             if(Number(data.round_number)===2){data.scenario=data.scenario||{};data.scenario.p_hot=n(hot.value)/100;data.scenario.p_cold=n(cold.value)/100;const headers=new w.Headers(input.headers||{});headers.set('Content-Type','application/json');return originalFetch(new w.Request(input.url,{method:input.method||'POST',headers,body:JSON.stringify(data),credentials:input.credentials,mode:input.mode,cache:input.cache,redirect:input.redirect,referrer:input.referrer,referrerPolicy:input.referrerPolicy}))}
+           }
+         }
+       }catch(e){console.warn('R2 demand hook:',e)}
+       return originalFetch(input,init)
+     };
+     injected=true;
+   }
+   const rounds=d.querySelectorAll('[data-nav-round]');
+   rounds.forEach(btn=>{if(btn.dataset.r2Hooked)return;btn.dataset.r2Hooked='1';btn.addEventListener('click',()=>setTimeout(()=>{const r=btn.getAttribute('data-nav-round');if(r==='2')show();else hide()},40))});
+   const active=d.querySelector('[data-nav-round="2"].active');if(active)show();
+ }
+ frame.addEventListener('load',()=>{injected=false;setTimeout(inject,120);setTimeout(inject,500)});
+ document.querySelectorAll('.step').forEach(b=>b.addEventListener('click',()=>{const el=b.dataset.target==='hot'?hot:cold;el.value=n(Number(el.value)+Number(b.dataset.delta));if(b.dataset.target==='hot')cold.value=100-n(el.value);else hot.value=100-n(el.value);validate()}));
+ document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>syncFromHot(b.dataset.hot)));
+ hot.addEventListener('input',()=>{cold.value=100-n(hot.value);validate()});cold.addEventListener('input',()=>{hot.value=100-n(cold.value);validate()});
+ apply.addEventListener('click',()=>{if(!validate())return;show();try{const d=frame.contentWindow.document;const solve=d.querySelector('.solve-btn');if(solve){solve.click();return}const buttons=[...d.querySelectorAll('button')];const b=buttons.find(x=>/ejecutar\s+gurobean|ejecutar|resolver|solve|optim/i.test((x.textContent||'').trim()));if(b)b.click()}catch(e){console.error('R2 apply:',e)}});
+ validate();
+ setInterval(inject,1200);
 })();
 </script>
 </body>

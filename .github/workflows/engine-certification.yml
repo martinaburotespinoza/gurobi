@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: gurobean-engine-certification-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   certification:
     name: Engine certification (no deployment)

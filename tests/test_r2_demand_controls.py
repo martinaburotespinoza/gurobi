@@ -10,8 +10,8 @@ def test_r2_cockpit_contains_editable_hot_cold_distribution_controls():
     assert "Café frío" in text
     assert 'id="hot"' in text
     assert 'id="cold"' in text
-    assert 'data-hot="75"' in text
-    assert 'data-hot="50"' in text
+    for preset in ('data-hot="75"', 'data-hot="50"', 'data-hot="25"', 'data-hot="100"'):
+        assert preset in text
     assert "p_hot" in text
     assert "p_cold" in text
     assert "100 %" in text
@@ -32,3 +32,18 @@ def test_r2_cockpit_preserves_7525_default_and_validates_total():
     assert 'value="25"' in text
     assert "Math.abs(sum-100)<1e-9" in text
     assert "data.round_number)===2" in text
+    assert "data.scenario.p_hot" in text
+    assert "data.scenario.p_cold" in text
+
+
+def test_live_cockpit_clarifies_r1_units_and_service_capacity():
+    text = (ROOT / "web" / "r2-cockpit.html").read_text(encoding="utf-8")
+    for marker in (
+        "Gramos de café por café caliente",
+        "Onzas de agua por café caliente",
+        "Café disponible (gramos/hora)",
+        "Agua disponible (onzas/hora)",
+        "Capacidad de servicio (clientes/hora por barista)",
+        "Demanda λ (clientes/hora)",
+    ):
+        assert marker in text

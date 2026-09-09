@@ -51,9 +51,7 @@ class Scenario:
                 raise ValueError(f"{name} must be >= 0")
         for name in ("beans_available", "water_available"):
             value = float(getattr(self, name))
-            if np.isnan(value) or value < 0:
-                raise ValueError(f"{name} must be >= 0 or +inf")
-            if np.isneginf(value):
+            if np.isnan(value) or np.isneginf(value) or value < 0:
                 raise ValueError(f"{name} must be >= 0 or +inf")
         if self.p_hot > 1 or self.p_cold > 1:
             raise ValueError("drink probabilities must be in [0, 1]")
@@ -298,30 +296,135 @@ def _newsvendor_curvature(Q: float, lam: float, revenue: float, salvage: float) 
 def _interval_curvature(a: float, b: float, lam: float, revenue: float, salvage: float) -> float:
     if b <= a:
         return 0.0
-    mid = 0.5 * (a + b)
-    return max(_newsvendor_curvature(a, lam, revenue, salvage), _newsvendor_curvature(mid, lam, revenue, salvage), _newsvendor_curvature(b, lam, revenue, salvage))
+    xs = [float(a), float(b)]
+    if a <= lam <= b:
+        xs.append(float(lam))
+    return max(_newsvendor_curvature(x, lam, revenue, salvage) for x in xs)
 
 
-def _pwl_points(hi: float, points: int = 20001) -> np.ndarray:
-    if points < 2:
-        raise ValueError("points must be >= 2")
-    return np.linspace(0.0, float(hi), int(points))
-
-
-def _pwl_approximate(sc: Scenario, round_number: int, qh: float, qc: float) -> float:
-    include_cold = round_number in (2, 4)
-    include_cost = round_number in (3, 4)
-    return _round_objective(sc, include_cold, include_cost, qh, qc)
+def _adaptive_pwl_points(hi: float, lam: float, revenue: float, salvage: float, critical_points: list[float] | None, max_points: int) -> list[float]:
+    hi = float(hi)
+    if hi <= 1e-12:
+        return [0.0] if hi <= 0.0 else [0.0, hi]
+    anchors = {0.0, hi}
+    for value in critical_points or []:
+        x = float(value)
+        if -1e-12 <= x <= hi + 1e-12:
+            anchors.add(min(max(x, 0.0), hi))
+    anchors = sorted(anchors)
+    if _interval_curvature(0.0, hi, lam, revenue, salvage) == 0.0:
+        return anchors
+    stack = list(zip(anchors[:-1], anchors[1:]))
+    refined = []
+    while stack:
+        a, b = stack.pop()
+        bound = _interval_curvature(a, b, lam, revenue, salvage) * (b - a) ** 2 / 8.0
+        if bound <= PWL_APPROX_TOL:
+            refined.append((a, b))
+            continue
+        mid = 0.5 * (a + b)
+        if mid <= a or mid >= b:
+            refined.append((a, b))
+            continue
+        stack.append((mid, b))
+        stack.append((a, mid))
+        if len(stack) + len(refined) > max_points * 2:
+            raise RuntimeError(f"adaptive PWL refinement exceeded point budget ({max_points}); domain={hi}, lambda={lam}, revenue={revenue}, salvage={salvage}")
+    refined.sort()
+    points = [refined[0][0]]
+    for a, b in refined:
+        if abs(points[-1] - a) > 1e-14:
+            points.append(a)
+        if b > points[-1]:
+            points.append(b)
+    if len(points) > max_points:
+        raise RuntimeError(f"adaptive PWL refinement requires {len(points)} points > {max_points}")
+    return points
 
 
 def solve_gurobi_round(sc: Scenario, round_number: int, pwl_points: int = 20001) -> dict:
     if round_number not in (1, 2, 3, 4):
-        raise ValueError("solve_gurobi_round currently covers rounds 1-4 only")
+        raise ValueError("Gurobi adapter currently covers rounds 1-4 only")
     try:
         import gurobipy as gp
     except ImportError as exc:
-        raise RuntimeError("gurobipy is required for Gurobi backend") from exc
-    # The hardened adapter is installed by gurobean.gurobi_backend before this
-    # symbol is exposed. This function remains the compatibility entry point.
-    from . import gurobi_backend
-    return gurobi_backend.solve(sc, round_number, pwl_points=pwl_points)
+        raise RuntimeError("gurobipy is not installed") from exc
+    include_cold = round_number in (2, 4)
+    include_cost = round_number in (3, 4)
+    hot_hi, cold_hi = _round_bounds(sc, include_cold, include_cost)
+    points = max(2, int(pwl_points))
+    m = gp.Model(f"gurobean_r{round_number}")
+    m.Params.OutputFlag = 0
+    m.Params.FeasibilityTol = 1e-9
+    m.Params.OptimalityTol = 1e-9
+    m.Params.NumericFocus = 2
+    m.Params.MIPGap = 0.0
+    m.Params.MIPGapAbs = 1e-9
+    m.ModelSense = gp.GRB.MAXIMIZE
+    qh = m.addVar(lb=0.0, ub=hot_hi, name="Q_hot")
+    qc = m.addVar(lb=0.0, ub=cold_hi if include_cold else 0.0, name="Q_cold")
+    if np.isfinite(sc.beans_available):
+        m.addConstr(sc.beans_hot * qh + sc.beans_cold * qc <= sc.beans_available, name="beans")
+    if np.isfinite(sc.water_available):
+        m.addConstr(sc.water_hot * qh + sc.water_cold * qc <= sc.water_available, name="water")
+    resource_vertices = _resource_vertices(sc, include_cold, hot_hi, cold_hi)
+    objective_constant = 0.0
+
+    def set_profit_pwl(var, hi, lam, revenue, cost, salvage, critical_points=None, name="profit"):
+        nonlocal objective_constant
+        hi = float(hi)
+        if hi <= 1e-12:
+            objective_constant += float(expected_newsvendor_profit(0.0, lam, revenue, cost, salvage))
+            return
+        if hi < 1e-5:
+            t = m.addVar(lb=0.0, ub=1.0, name=f"{name}_normalized")
+            m.addConstr(var == hi * t, name=f"{name}_scale")
+            xs = np.linspace(0.0, 1.0, points)
+            ys = [expected_newsvendor_profit(float(hi * x), lam, revenue, cost, salvage) for x in xs]
+            m.setPWLObj(t, xs.tolist(), ys)
+            return
+        xs = _adaptive_pwl_points(hi, lam, revenue, salvage, critical_points, points)
+        ys = [expected_newsvendor_profit(float(x), lam, revenue, cost, salvage) for x in xs]
+        m.setPWLObj(var, xs, ys)
+
+    set_profit_pwl(qh, hot_hi, sc.lambda_hot, sc.revenue_hot, sc.cost_hot if include_cost else 0.0, sc.salvage_hot, [v[0] for v in resource_vertices], "profit_hot")
+    if include_cold:
+        set_profit_pwl(qc, cold_hi, sc.lambda_cold, sc.revenue_cold, sc.cost_cold if include_cost else 0.0, sc.salvage_cold, [v[1] for v in resource_vertices], "profit_cold")
+    if objective_constant:
+        m.ObjCon = objective_constant
+    m.optimize()
+    if m.Status != gp.GRB.OPTIMAL:
+        raise RuntimeError(f"Gurobi did not return OPTIMAL; status={m.Status}")
+    qh_value = float(qh.X)
+    qc_value = float(qc.X) if include_cold else 0.0
+    exact_objective = _round_objective(sc, include_cold, include_cost, qh_value, qc_value)
+    return {"Q_hot": qh_value, "Q_cold": qc_value, "objective": float(m.ObjVal), "exact_objective": exact_objective, "method": "gurobi_native_pwl_objective_validation", "status": int(m.Status), "pwl_points": points}
+
+
+def solve_round(round_number: int, sc: Scenario, backend: str = "scipy") -> dict:
+    if round_number not in range(1, 9):
+        raise ValueError("round must be 1..8")
+    if round_number <= 4:
+        if backend == "scipy":
+            return solve_round_scipy(sc, round_number)
+        if backend == "gurobi":
+            return solve_gurobi_round(sc, round_number)
+        if backend == "closed_form" and round_number == 1:
+            return solve_round1_closed_form(sc)
+        raise ValueError("backend must be scipy, gurobi, or closed_form (R1 only)")
+    raise NotImplementedError(f"R{round_number} requires calibrated game dynamics; no invented equation is used.")
+
+
+def solve_gurobi_r1(sc: Scenario):
+    return solve_gurobi_round(sc, 1)
+
+
+def solve_reference_round(sc: Scenario, round_number: int | None = None) -> dict:
+    if round_number is None:
+        round_number = 1
+    if round_number not in (1, 2, 3, 4):
+        raise ValueError("reference currently covers rounds 1-4 only")
+    result = solve_round_scipy(sc, round_number)
+    qh = float(result["Q_hot"])
+    qc = float(result["Q_cold"])
+    return {"q": qh, "q_cold": qc, "objective": float(_round_objective(sc, round_number in (2, 4), round_number in (3, 4), qh, qc)), "success": True, "method": result.get("method", "scipy_reference")}

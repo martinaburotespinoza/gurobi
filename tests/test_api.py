@@ -117,3 +117,27 @@ def test_non_finite_scenario_value_is_rejected_by_api_schema():
         scenario[field] = value
         with pytest.raises(ValidationError):
             ScenarioInput.model_validate(scenario)
+
+
+def test_stale_frontend_service_rate_bounds_do_not_regress_to_http_422():
+    from fastapi.testclient import TestClient
+    from api.app import app
+
+    payload = _payload(round_number=5)
+    payload["dynamic"]["service_rate_base"] = 65.0
+    payload["dynamic"]["service_rate_min"] = 50.0
+    payload["dynamic"]["service_rate_max"] = 60.0
+    response = TestClient(app).post("/solve", json=payload)
+    assert response.status_code == 200, response.text
+    result = response.json()["result"]
+    assert result["operational"] is True
+
+
+def test_public_root_serves_premium_frontend():
+    from fastapi.testclient import TestClient
+    from api.app import app
+
+    response = TestClient(app).get("/")
+    assert response.status_code == 200
+    assert "Decision Cockpit" in response.text
+    assert "/api/solve" in response.text

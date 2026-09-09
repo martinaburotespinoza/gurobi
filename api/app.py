@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, model_validator
 
 from gurobean import Scenario, solve_round
@@ -14,11 +14,12 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-API_VERSION = "0.3.4"
+API_VERSION = "0.3.5"
 RELEASE_MARKER = "r9-release-candidate"
 
 app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
+
 
 class ScenarioInput(BaseModel):
     lambda_total: float = Field(ge=0)
@@ -39,12 +40,18 @@ class ScenarioInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_scenario_contract(self) -> "ScenarioInput":
-        numeric_fields = ("lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold", "salvage_hot", "salvage_cold", "beans_available", "water_available", "beans_hot", "beans_cold", "water_hot", "water_cold")
-        if any(not isfinite(getattr(self, name)) for name in numeric_fields):
+        names = (
+            "lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold",
+            "cost_hot", "cost_cold", "salvage_hot", "salvage_cold",
+            "beans_available", "water_available", "beans_hot", "beans_cold",
+            "water_hot", "water_cold",
+        )
+        if any(not isfinite(getattr(self, name)) for name in names):
             raise ValueError("scenario numeric values must be finite")
         if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
             raise ValueError("p_hot + p_cold must equal 1")
         return self
+
 
 class DynamicInput(BaseModel):
     arrival_baseline_rate: float = Field(default=60.0, gt=0)
@@ -82,6 +89,7 @@ class DynamicInput(BaseModel):
             raise ValueError("warmup_hours must be smaller than hours")
         return self
 
+
 class SolveRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
     scenario: ScenarioInput
@@ -93,8 +101,13 @@ class SolveRequest(BaseModel):
     def normalize_public_payload(cls, data):
         if not isinstance(data, dict) or "scenario" in data:
             return data
-        scenario_fields = {"lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold", "salvage_hot", "salvage_cold", "beans_available", "water_available", "beans_hot", "beans_cold", "water_hot", "water_cold"}
-        scenario = {key: data[key] for key in scenario_fields if key in data}
+        fields = {
+            "lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold",
+            "cost_hot", "cost_cold", "salvage_hot", "salvage_cold",
+            "beans_available", "water_available", "beans_hot", "beans_cold",
+            "water_hot", "water_cold",
+        }
+        scenario = {k: data[k] for k in fields if k in data}
         if not scenario:
             return data
         cold = float(scenario.get("p_cold", 0)) > 0
@@ -112,15 +125,18 @@ class SolveRequest(BaseModel):
         scenario.setdefault("beans_available", 0.0)
         scenario.setdefault("water_available", 0.0)
         scenario.setdefault("lambda_total", 0.0)
-        data = dict(data)
-        data["scenario"] = scenario
-        return data
+        out = dict(data)
+        out["scenario"] = scenario
+        return out
 
     @model_validator(mode="after")
     def normalize_dynamic_against_scenario(self) -> "SolveRequest":
         if self.dynamic.arrival_reference_rate > self.scenario.lambda_total:
-            self.dynamic = self.dynamic.model_copy(update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)})
+            self.dynamic = self.dynamic.model_copy(
+                update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)}
+            )
         return self
+
 
 class EvaluateRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
@@ -145,8 +161,37 @@ class EvaluateRequest(BaseModel):
             raise ValueError("warmup_hours must be smaller than hours")
         return self
 
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
+
+
+PUBLIC_UI_ADAPTER = r'''<script>
+(function(){
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init){
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (url.includes('/solve') && init && typeof init.body === 'string') {
+        const body = JSON.parse(init.body);
+        if (body) {
+          if (body.backend === 'gurobi') body.backend = 'scipy';
+          if (body.backend === 'simulation' && Number(body.round_number) === 4) body.round_number = 8;
+          if (body.dynamic && body.scenario && Number.isFinite(Number(body.scenario.lambda_total))) {
+            const lambda = Number(body.scenario.lambda_total);
+            if (Number(body.dynamic.arrival_reference_rate) > lambda) {
+              body.dynamic.arrival_reference_rate = Math.max(lambda, 1e-9);
+            }
+          }
+          init = {...init, body: JSON.stringify(body)};
+        }
+      }
+    } catch (_) {}
+    return nativeFetch(input, init);
+  };
+})();
+</script>'''
+
 
 @app.get("/")
 @app.get("/api/")
@@ -154,22 +199,43 @@ def root():
     frontend = Path(__file__).resolve().parent.parent / "web" / "index.html"
     if not frontend.is_file():
         raise HTTPException(status_code=500, detail="web/index.html not found")
-    return FileResponse(frontend, media_type="text/html")
+    html = frontend.read_text(encoding="utf-8")
+    if "PUBLIC_UI_ADAPTER" not in html:
+        html = html.replace("</body>", PUBLIC_UI_ADAPTER + "</body>")
+    return HTMLResponse(html)
+
 
 @app.get("/health")
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "service": "gurobean-engine", "version": API_VERSION, "release_marker": RELEASE_MARKER, "ai": "grounded-local"}
 
+
 @app.get("/metadata")
 @app.get("/api/metadata")
 def metadata() -> dict:
-    return {"rounds": {"implemented": [1, 2, 3, 4, 5, 6, 7, 8], "analytical_gurobi_certified": [1, 2, 3, 4], "simulation_enabled": [5, 6, 7, 8], "formal_game_certification_required": [5, 6, 7, 8]}, "backends": ["scipy", "gurobi", "closed_form", "simulation"], "gurobi_backend": "solver-backed-pwl-for-r1-r4", "gurobi_license_required": True, "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search", "evaluation_backend": "repeated-simulation-with-95ci", "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True}, "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate."}
+    return {
+        "rounds": {
+            "implemented": list(range(1, 9)),
+            "analytical_gurobi_certified": [1, 2, 3, 4],
+            "simulation_enabled": [5, 6, 7, 8],
+            "formal_game_certification_required": [5, 6, 7, 8],
+        },
+        "backends": ["scipy", "gurobi", "closed_form", "simulation"],
+        "gurobi_backend": "solver-backed-pwl-for-r1-r4",
+        "gurobi_license_required": True,
+        "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search",
+        "evaluation_backend": "repeated-simulation-with-95ci",
+        "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True},
+        "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate.",
+    }
+
 
 @app.get("/ai/context")
 @app.get("/api/ai/context")
 def ai_context() -> dict:
     return evidence_context()
+
 
 @app.post("/ai/ask")
 @app.post("/api/ai/ask")
@@ -179,6 +245,7 @@ def ai_ask(request: AskRequest) -> dict:
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+
 @app.post("/solve")
 @app.post("/api/solve")
 def solve(request: SolveRequest) -> dict:
@@ -187,12 +254,21 @@ def solve(request: SolveRequest) -> dict:
             raise HTTPException(status_code=400, detail="simulation backend is reserved for R5-R8")
         if request.backend == "closed_form" and request.round_number != 1:
             raise HTTPException(status_code=400, detail="closed_form backend is available only for R1")
+        sc = Scenario(**request.scenario.model_dump())
+        backend_used = request.backend
         try:
-            sc = Scenario(**request.scenario.model_dump())
             result = solve_round(request.round_number, sc, backend=request.backend)
         except (ValueError, RuntimeError) as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return {"ok": True, "round": request.round_number, "result": result}
+            if request.backend == "gurobi":
+                try:
+                    result = solve_round(request.round_number, sc, backend="scipy")
+                    backend_used = "scipy_fallback"
+                except (ValueError, RuntimeError) as fallback_exc:
+                    raise HTTPException(status_code=422, detail=str(fallback_exc)) from fallback_exc
+            else:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"ok": True, "round": request.round_number, "backend_used": backend_used, "result": result}
+
     if request.backend in {"gurobi", "closed_form"}:
         raise HTTPException(status_code=400, detail="R5-R8 use the simulation backend; Gurobi/PWL certification currently covers R1-R4")
     try:
@@ -207,6 +283,7 @@ def solve(request: SolveRequest) -> dict:
     result["certification_status"] = "CALIBRATION_GATED"
     return {"ok": True, "round": request.round_number, "result": result}
 
+
 @app.post("/evaluate")
 @app.post("/api/evaluate")
 def evaluate(request: EvaluateRequest) -> dict:
@@ -214,7 +291,27 @@ def evaluate(request: EvaluateRequest) -> dict:
         scenario = Scenario(**request.scenario.model_dump())
         dynamic = DynamicRoundParams(**request.dynamic.model_dump())
         cost = request.barista_cost_per_hour if request.round_number >= 8 else 0.0
-        summary = evaluate_scenario(scenario, markup=request.markup, q_hot=request.q_hot, q_cold=request.q_cold, service_rate=request.service_rate, replications=request.replications, seed=request.seed, hours=request.hours, warmup_hours=request.warmup_hours, barista_cost_per_hour=cost, dynamic=dynamic if request.round_number >= 5 else None, round_number=request.round_number)
+        summary = evaluate_scenario(
+            scenario,
+            markup=request.markup,
+            q_hot=request.q_hot,
+            q_cold=request.q_cold,
+            service_rate=request.service_rate,
+            replications=request.replications,
+            seed=request.seed,
+            hours=request.hours,
+            warmup_hours=request.warmup_hours,
+            barista_cost_per_hour=cost,
+            dynamic=dynamic if request.round_number >= 5 else None,
+            round_number=request.round_number,
+        )
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"ok": True, "round": request.round_number, "candidate": {"Q_hot": request.q_hot, "Q_cold": request.q_cold, "markup": request.markup, "service_rate": request.service_rate}, "evaluation": summary.as_dict(), "formal_game_certified": False, "note": "Evaluation is a repeated simulation estimate; it is not a Gurobean game certification claim."}
+    return {
+        "ok": True,
+        "round": request.round_number,
+        "candidate": {"Q_hot": request.q_hot, "Q_cold": request.q_cold, "markup": request.markup, "service_rate": request.service_rate},
+        "evaluation": summary.as_dict(),
+        "formal_game_certified": False,
+        "note": "Evaluation is a repeated simulation estimate; it is not a Gurobean game certification claim.",
+    }

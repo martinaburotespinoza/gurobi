@@ -14,7 +14,13 @@ def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
     assert '"source":"/capture"' in text
     assert '"destination":"/web/capture.html"' in text
     assert '"source":"/api/:path*"' not in text
-    assert '"source":"/"' not in text
+
+    import json
+    config = json.loads(text)
+    rewrites = {item["source"]: item["destination"] for item in config["rewrites"]}
+    assert rewrites["/capture"] == "/web/capture.html"
+    assert rewrites["/capture/"] == "/web/capture.html"
+    assert rewrites["/"] == "/web/r2-cockpit.html"
 
 
 def test_public_ui_is_not_empty_and_has_eight_rounds():

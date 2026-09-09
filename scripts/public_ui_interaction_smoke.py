@@ -50,7 +50,7 @@ def main() -> None:
     if missing_handlers:
         raise SystemExit(f"PUBLIC UI SMOKE: FAIL — missing handlers: {missing_handlers}")
 
-    for endpoint in ("/api/health", "/api/solve", "/api/evaluate", "/api/ai/ask"):
+    for endpoint in ("api+'/health'", "api+'/solve'", "api+'/evaluate'", "api+'/ai/ask'"):
         if endpoint not in app:
             raise SystemExit(f"PUBLIC UI SMOKE: FAIL — app missing endpoint contract {endpoint}")
 

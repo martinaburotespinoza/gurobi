@@ -27,4 +27,4 @@ pythonpath = ["."]
 include = ["gurobean*", "api*"]
 
 [tool.vercel]
-entrypoint = "api/index.py"
+entrypoint = "api.index:app"

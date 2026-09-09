@@ -5,16 +5,20 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Verify Vercel token is available
         shell: bash
         run: |
@@ -27,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" --name gurobean-engine-v2-6 2>&1 | tee vercel-deploy.log
+          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
           URL=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
           if [ -z "$URL" ]; then
             echo "Could not determine the production deployment URL."
@@ -36,7 +40,7 @@ jobs:
           fi
           echo "GUROBEAN_PRODUCTION_URL=$URL" >> "$GITHUB_ENV"
           echo "Production deployment URL: $URL"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install production validation dependencies

@@ -11,10 +11,10 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 - **R9 release certification:** strict licensed-Gurobi gate with adaptive PWL refinement, clean-commit enforcement and a complete JSON audit artifact.
 - **Simulation:** reproducible M/M/1 baseline plus a configurable continuous-time coffee-shop simulator with inventory, balking, multi-cup orders and service-rate cost.
 - **Experiments:** seeded batches, aggregation and cross-validation.
-- **Validation:** analytical-vs-Monte-Carlo checks, deterministic self-audit and production validation commands.
+- **Validation:** analytical-vs-Monte-Carlo checks, deterministic self-audit, public UI interaction smoke and production validation commands.
 - **API:** FastAPI `/health`, `/metadata`, `/solve`, `/evaluate`, `/status`, and assistant endpoints; all eight rounds are executable, with R5-R8 using the simulation backend.
-- **CI:** Python 3.10-3.13 compile + test matrix plus reference/release-boundary audits.
-- **Public web:** Vercel-ready public console with API routing and explicit certification-boundary messaging.
+- **CI:** Python 3.10-3.13 compile + test matrix, public UI interaction smoke, reference/release-boundary audits and a manual licensed-Gurobi certification workflow.
+- **Public web:** Vercel-ready public console with API routing, R1-R8 navigation, comparison, simulation, assistant and live-game evidence capture with explicit certification-boundary messaging.
 
 ## Validate the engine
 
@@ -24,11 +24,14 @@ python scripts/system_audit.py
 python scripts/self_audit.py
 python scripts/validate_all.py
 python scripts/validate_production.py
+python scripts/public_ui_interaction_smoke.py
 python scripts/r8_math_validation.py
 python scripts/r9_end_to_end.py
 ```
 
 `system_audit.py` is a conservative non-licensed integration gate. It verifies required modules/scripts, compiles the application surface, executes the full test suite and validates the certification manifest. It deliberately reports the licensed Gurobi and real-game gates as external rather than fabricating them.
+
+`public_ui_interaction_smoke.py` verifies the production console's R1-R8 navigation, required controls, event-handler wiring, public API endpoint contracts and live-game capture actions. It complements the JavaScript syntax smoke; it is intentionally deterministic and does not claim to replace a browser session against production.
 
 For the complete non-licensed pre-live gate, run:
 
@@ -59,6 +62,10 @@ A release is accepted only when the final gate reports `GUROBI_GATE: CHECKED`, `
 
 The generated R9 artifact is intentionally not committed: committing it changes `HEAD` and invalidates its exact-commit attestation.
 
+### Automated licensed certification
+
+`.github/workflows/r9-licensed-certification.yml` is a manual, strict release workflow. It requires GitHub Actions secrets for a real Gurobi Web License Service environment (`GRB_WLSACCESSID`, `GRB_WLSSECRET`, `GRB_LICENSEID`), installs `gurobipy`, runs `check_gurobi.py`, executes all 400 R9 cases through `r9_release.py`, runs `final_live_test_gate.py`, and uploads the exact certification artifact. The workflow cannot convert missing credentials or a missing license into a PASS.
+
 ## R5-R8 operational boundary
 
 The official Gurobean Game Guide is the normative game source. It confirms the progressive mechanisms: markup-dependent arrivals, balking, multi-cup orders and service-rate/barista cost. The exact response relationships used by a real game scenario must come from real-game evidence/calibration. `gurobean/full_rounds.py` therefore makes every later round executable without hiding those relationships: arrival anchors, balking coefficients, multi-cup distribution and service-cost coefficients are explicit inputs. The engine reports R5-R8 as operational simulation results, never as formal game-parity certificates, until `gurobean/evidence_gate.py` is satisfied.
@@ -77,6 +84,3 @@ Then use `/docs` locally and `/status` for the deterministic certification/readi
 ## Gurobi backend
 
 The Gurobi adapter is deliberately a validation layer around the exact analytical objective. Normal CDF/PDF are represented with dense solver-backed PWL constraints; the analytical objective remains the independent mathematical reference. No Gurobi result is treated as an exact continuous certificate merely because the optimizer reports `OPTIMAL`.
-
-<!-- production deploy trigger: 2026-09-09 -->
-<!-- production deploy retry: 2026-09-09 -->

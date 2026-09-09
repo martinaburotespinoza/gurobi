@@ -14,6 +14,7 @@ def test_status_exposes_truthful_readiness_without_r9_artifact(monkeypatch, tmp_
         encoding="utf-8",
     )
     monkeypatch.setattr(public_router, "_git_head", lambda: "abc123")
+    monkeypatch.setattr(public_router, "_git_dirty", lambda: [])
     monkeypatch.setattr(
         public_router,
         "_gurobi",
@@ -46,6 +47,7 @@ def test_status_can_approve_only_with_current_400_case_r9_artifact(monkeypatch, 
         encoding="utf-8",
     )
     monkeypatch.setattr(public_router, "_git_head", lambda: "abc123")
+    monkeypatch.setattr(public_router, "_git_dirty", lambda: [])
     monkeypatch.setattr(
         public_router,
         "_gurobi",

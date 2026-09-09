@@ -68,6 +68,77 @@ def test_solve_r1_reference_contract():
     assert isinstance(body["result"], dict)
 
 
+def test_flat_payload_uses_r2_7525_default_when_distribution_is_omitted():
+    response = client.post(
+        "/solve",
+        json={
+            "round_number": 1,
+            "backend": "scipy",
+            "lambda_total": 20.0,
+            "revenue_hot": 5.0,
+            "revenue_cold": 4.0,
+            "cost_hot": 2.0,
+            "cost_cold": 1.5,
+            "beans_available": 100.0,
+            "water_available": 100.0,
+            "beans_hot": 1.0,
+            "beans_cold": 1.0,
+            "water_hot": 1.0,
+            "water_cold": 1.0,
+        },
+    )
+    assert response.status_code == 200
+    # The public flat contract normalizes to the R2 game's canonical 75/25 split.
+    normalized = app.routes[-1] if False else None
+    # Re-read the normalized model directly so this test remains independent of
+    # solver-specific output formatting.
+    from api.app import SolveRequest
+
+    request = SolveRequest.model_validate({
+        "round_number": 1,
+        "backend": "scipy",
+        "lambda_total": 20.0,
+        "revenue_hot": 5.0,
+        "revenue_cold": 4.0,
+        "cost_hot": 2.0,
+        "cost_cold": 1.5,
+        "beans_available": 100.0,
+        "water_available": 100.0,
+        "beans_hot": 1.0,
+        "beans_cold": 1.0,
+        "water_hot": 1.0,
+        "water_cold": 1.0,
+    })
+    assert request.scenario.p_hot == 0.75
+    assert request.scenario.p_cold == 0.25
+
+
+def test_flat_payload_infers_complement_when_one_probability_is_supplied():
+    base = {
+        "round_number": 1,
+        "backend": "scipy",
+        "lambda_total": 20.0,
+        "revenue_hot": 5.0,
+        "revenue_cold": 4.0,
+        "cost_hot": 2.0,
+        "cost_cold": 1.5,
+        "beans_available": 100.0,
+        "water_available": 100.0,
+        "beans_hot": 1.0,
+        "beans_cold": 1.0,
+        "water_hot": 1.0,
+        "water_cold": 1.0,
+    }
+    from api.app import SolveRequest
+
+    hot_only = SolveRequest.model_validate({**base, "p_hot": 0.25})
+    cold_only = SolveRequest.model_validate({**base, "p_cold": 0.25})
+    assert hot_only.scenario.p_hot == 0.25
+    assert hot_only.scenario.p_cold == 0.75
+    assert cold_only.scenario.p_hot == 0.75
+    assert cold_only.scenario.p_cold == 0.25
+
+
 def test_r5_rejects_gurobi_backend():
     response = client.post(
         "/solve",

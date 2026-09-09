@@ -33,6 +33,7 @@ def test_r5_relationship_is_monotone_when_reference_rate_is_lower() -> None:
         (1.0, 100.0, 25.0, 0.0),
         (math.nan, 100.0, 25.0, 3.0),
         (1.0, math.inf, 25.0, 3.0),
+        (1.0, 100.0, 100.0, 3.0),
     ],
 )
 def test_r5_rejects_invalid_parameters(markup, baseline, reference, m0) -> None:

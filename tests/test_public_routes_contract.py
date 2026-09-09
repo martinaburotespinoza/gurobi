@@ -14,7 +14,8 @@ def test_vercel_routes_expose_app_and_capture():
     assert '"source":"/app"' in text
     assert '"destination":"/api/ui.py"' in text
     assert '"source":"/"' in text
-    assert '"capture"' in text
+    assert '"source":"/capture"' in text
+    assert '"destination":"/web/capture.html"' in text
 
 
 def test_public_ui_is_not_empty_and_has_eight_rounds():

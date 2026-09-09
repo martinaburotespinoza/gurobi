@@ -2,6 +2,8 @@ name: Gurobean R9 Licensed Certification
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read

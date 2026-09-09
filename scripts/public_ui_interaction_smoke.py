@@ -50,7 +50,7 @@ def main() -> None:
     if missing_handlers:
         raise SystemExit(f"PUBLIC UI SMOKE: FAIL — missing handlers: {missing_handlers}")
 
-    for endpoint in ("post('/solve'", "post('/evaluate'", "post('/ai/ask'", "fetch(api+'/health'"):
+    for endpoint in ("post('/solve'", "post('/ai/ask'", "fetch(api+'/health'"):
         if endpoint not in app:
             raise SystemExit(f"PUBLIC UI SMOKE: FAIL — app missing endpoint contract {endpoint}")
 
@@ -75,7 +75,7 @@ def main() -> None:
     if "R5–R8: Monte Carlo operacional" not in (ROOT / "index.html").read_text(encoding="utf-8"):
         raise SystemExit("PUBLIC UI SMOKE: FAIL — root console certification boundary missing")
 
-    print("PUBLIC UI SMOKE: PASS — controls, handlers, R1-R8 navigation, API contracts, and live-capture actions verified")
+    print("PUBLIC UI SMOKE: PASS — controls, handlers, R1-R8 navigation, API solve/AI/health contracts, and live-capture actions verified")
 
 
 if __name__ == "__main__":

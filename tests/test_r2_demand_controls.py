@@ -20,7 +20,7 @@ def test_r2_cockpit_contains_editable_hot_cold_distribution_controls():
 def test_root_routes_to_r2_cockpit_and_api_allows_same_origin_embedding():
     config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     rewrites = config["rewrites"]
-    assert {r["source"]: r["destination"] for r in rewrites}["/"] == "/web/r2-cockpit.html"
+    assert {r["source"]: r["destination"] for r in rewrites}["/"] == "/api/index.py/r2-cockpit"
     headers = config["headers"]
     api_headers = next(item for item in headers if item["source"] == "/api/(.*)")["headers"]
     assert {h["key"]: h["value"] for h in api_headers}["X-Frame-Options"] == "SAMEORIGIN"

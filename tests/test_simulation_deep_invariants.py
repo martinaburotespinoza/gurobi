@@ -14,7 +14,8 @@ def test_zero_arrival_has_no_sales_and_exact_inventory_accounting():
     assert metrics.served == 0
     assert metrics.lost == 0
     assert economics["served_cups"] == 0
-    assert math.isclose(economics["inventory_hot_end"], produced, rel_tol=0.0, abs_tol=1e-12)
+    assert math.isclose(economics["inventory_hot_end"], 0.0, rel_tol=0.0, abs_tol=1e-12)
+    assert math.isclose(economics["waste_hot"], produced, rel_tol=0.0, abs_tol=1e-12)
     assert math.isclose(economics["profit"], -produced * 1.25, rel_tol=0.0, abs_tol=1e-12)
 
 

@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      GUROBEAN_CANONICAL_URL: https://gurobi-phi.vercel.app
+      GUROBEAN_VERCEL_PROJECT: gurobi
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -27,11 +29,11 @@ jobs:
             exit 1
           fi
           echo "VERCEL_TOKEN is available to the deployment job."
-      - name: Deploy production
+      - name: Deploy production to canonical Vercel project
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
+          npx --yes vercel@latest deploy --prod --yes --name "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
           URL=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
           if [ -z "$URL" ]; then
             echo "Could not determine the production deployment URL."
@@ -49,6 +51,34 @@ jobs:
         env:
           VERCEL_PROTECTED_CI: "1"
         run: python scripts/validate_production.py
+      - name: Validate canonical public alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checking canonical production alias: $GUROBEAN_CANONICAL_URL"
+          npx --yes vercel@latest curl "$GUROBEAN_CANONICAL_URL/api/health" > canonical-health.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("canonical-health.json").read_text(encoding="utf-8"))
+          assert payload.get("status") == "ok", payload
+          assert payload.get("service") == "gurobean-engine", payload
+          print("CANONICAL_ALIAS_HEALTH: PASS")
+          PY
+      - name: Validate canonical UI delivery marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes vercel@latest curl "$GUROBEAN_CANONICAL_URL/" > canonical-ui.html
+          python - <<'PY'
+          from pathlib import Path
+          html = Path("canonical-ui.html").read_text(encoding="utf-8", errors="replace")
+          required = ["gurobean-readable-ui", "gurobean-premium-visual", "gurobean-visual-patch", "☕", "🧊", "🏆"]
+          missing = [marker for marker in required if marker not in html]
+          if missing:
+              raise SystemExit(f"CANONICAL_UI_MARKER_FAILURE: {missing}")
+          print("CANONICAL_UI_DELIVERY: PASS")
+          PY
       - name: Upload production validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,5 +87,7 @@ jobs:
           path: |
             validation_report.json
             vercel-deploy.log
+            canonical-health.json
+            canonical-ui.html
           if-no-files-found: warn
           retention-days: 30

@@ -36,11 +36,16 @@ def _git_state() -> str:
     ).strip()
     dirty = subprocess.check_output(
         ["git", "status", "--porcelain"], cwd=ROOT, text=True
-    ).strip()
-    if dirty:
+    ).splitlines()
+    # The release artifact is intentionally generated and untracked. It records
+    # the exact source HEAD and must remain outside Git so that its own creation
+    # cannot invalidate the attestation it contains. Any other working-tree
+    # change is still a hard release blocker.
+    unexpected = [line for line in dirty if not line.endswith("r9_release_certification.json")]
+    if unexpected:
         raise RuntimeError(
             "working tree must be clean for certification; "
-            f"unexpected changes:\n{dirty}"
+            f"unexpected changes:\n{'\n'.join(unexpected)}"
         )
     return sha
 

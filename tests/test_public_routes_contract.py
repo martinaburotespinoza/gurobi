@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from api.ui import app as ui_app
+from api.index import app as ui_app
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -140,4 +140,4 @@ def test_public_root_serves_premium_frontend():
     response = TestClient(app).get("/")
     assert response.status_code == 200
     assert "Decision Cockpit" in response.text
-    assert "/api/solve" in response.text
+    assert "R1" in response.text and "R8" in response.text

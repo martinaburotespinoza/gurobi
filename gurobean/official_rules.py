@@ -26,7 +26,8 @@ def arrival_rate_from_markup(
 
     Thus ``baseline_rate`` is lambda_bar, ``reference_rate`` is lambda_0,
     and ``reference_markup`` is m0. Consequently lambda(0)=lambda_bar and
-    lambda(m0)=lambda_0.
+    lambda(m0)=lambda_0. The game rule requires markup to reduce arrivals, so
+    the reference rate must be strictly below the baseline rate.
 
     This is a rule evaluator, not an R5 certification claim. The actual game
     scenario must supply the corresponding parameter values.
@@ -45,12 +46,18 @@ def arrival_rate_from_markup(
         raise ValueError("arrival rates must be > 0")
     if reference_markup <= 0:
         raise ValueError("reference_markup must be > 0")
-    if reference_rate > baseline_rate:
-        raise ValueError("reference_rate must be <= baseline_rate for markup to reduce arrivals")
+    if reference_rate >= baseline_rate:
+        raise ValueError("reference_rate must be < baseline_rate for markup to reduce arrivals")
 
     a = log(reference_rate / baseline_rate)
     exponent = a * markup / reference_markup
-    return baseline_rate * exp(exponent)
+    try:
+        result = baseline_rate * exp(exponent)
+    except OverflowError as exc:
+        raise ValueError("R5 markup produces an unrepresentable arrival rate") from exc
+    if not isfinite(result) or result <= 0:
+        raise ValueError("R5 markup produces an invalid arrival rate")
+    return result
 
 
 def validate_r5_anchor_points(

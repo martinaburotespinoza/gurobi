@@ -12,7 +12,7 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 - **Simulation:** reproducible M/M/1 baseline plus a configurable continuous-time coffee-shop simulator with inventory, balking, multi-cup orders and service-rate cost.
 - **Experiments:** seeded batches, aggregation and cross-validation.
 - **Validation:** analytical-vs-Monte-Carlo checks, deterministic self-audit and production validation commands.
-- **API:** FastAPI `/health`, `/metadata`, `/solve`, `/evaluate`, and assistant endpoints; all eight rounds are executable, with R5-R8 using the simulation backend.
+- **API:** FastAPI `/health`, `/metadata`, `/solve`, `/evaluate`, `/status`, and assistant endpoints; all eight rounds are executable, with R5-R8 using the simulation backend.
 - **CI:** Python 3.10-3.13 compile + test matrix plus reference/release-boundary audits.
 - **Public web:** Vercel-ready public console with API routing and explicit certification-boundary messaging.
 
@@ -20,12 +20,15 @@ Production-oriented mathematical, calibration and simulation engine for Gurobean
 
 ```bash
 python -m pytest -q
+python scripts/system_audit.py
 python scripts/self_audit.py
 python scripts/validate_all.py
 python scripts/validate_production.py
 python scripts/r8_math_validation.py
 python scripts/r9_end_to_end.py
 ```
+
+`system_audit.py` is a conservative non-licensed integration gate. It verifies required modules/scripts, compiles the application surface, executes the full test suite and validates the certification manifest. It deliberately reports the licensed Gurobi and real-game gates as external rather than fabricating them.
 
 For the complete non-licensed pre-live gate, run:
 
@@ -37,6 +40,10 @@ That check deliberately cannot manufacture an R9 PASS: the final release require
 
 `check_gurobi.py` deliberately returns a non-zero status when `gurobipy` or a valid Gurobi license is unavailable; the engine never fakes a solver result.
 
+## Public certification status
+
+The Vercel/API surface exposes `/status`. It cross-checks the certification manifest, current Git HEAD, source-tree cleanliness, Gurobi license state and the R9 JSON artifact. The public status can report the engine as healthy while still reporting the release as `NOT_READY`; an R9 artifact from an older commit cannot produce a current release PASS.
+
 ## Strict R9 release gate
 
 The final release must be executed from the exact clean commit being released, in an environment with a real licensed Gurobi installation:
@@ -45,9 +52,12 @@ The final release must be executed from the exact clean commit being released, i
 git status --short
 python scripts/check_gurobi.py
 python scripts/r9_release.py
+python scripts/final_live_test_gate.py
 ```
 
-A release is accepted only when the command reports `GUROBI_GATE: CHECKED` and `R9 STATUS: PASS`. It creates `r9_release_certification.json`, which records the exact Git commit, seeded cases, round results, objective regrets, solver-objective errors, refinement events and failures. See `docs/R9_RELEASE_GATE.md`, `docs/LIVE_TEST_READINESS.md` and `docs/MATHEMATICAL_SPEC.md` for the normative definitions.
+A release is accepted only when the final gate reports `GUROBI_GATE: CHECKED`, `R9 STATUS: PASS`, exactly 400 checked cases, zero failures, exact commit match and a clean source tree. It creates `r9_release_certification.json`, which records the exact Git commit, seeded cases, round results, objective regrets, solver-objective errors, refinement events and failures. See `docs/R9_RELEASE_GATE.md`, `docs/LIVE_TEST_READINESS.md` and `docs/MATHEMATICAL_SPEC.md` for the normative definitions.
+
+The generated R9 artifact is intentionally not committed: committing it changes `HEAD` and invalidates its exact-commit attestation.
 
 ## R5-R8 operational boundary
 
@@ -62,7 +72,7 @@ pip install -e '.[api,test]'
 python scripts/run_api.py
 ```
 
-Then use `/docs` locally.
+Then use `/docs` locally and `/status` for the deterministic certification/readiness state.
 
 ## Gurobi backend
 

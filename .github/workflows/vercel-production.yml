@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  VERCEL_CLI_VERSION: 59.14.0
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -34,12 +37,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest link --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN"
+          npx --yes "vercel@$VERCEL_CLI_VERSION" link --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN"
       - name: Deploy production and attach canonical alias
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest deploy --prod --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
+          npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
           URL=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
           if [ -z "$URL" ]; then
             echo "Could not determine the production deployment URL."
@@ -49,7 +52,7 @@ jobs:
           echo "GUROBEAN_PRODUCTION_URL=$URL" >> "$GITHUB_ENV"
           echo "Production deployment URL: $URL"
           echo "Attaching canonical alias: $GUROBEAN_CANONICAL_HOST"
-          npx --yes vercel@latest alias set "$URL" "$GUROBEAN_CANONICAL_HOST" --token "$VERCEL_TOKEN"
+          npx --yes "vercel@$VERCEL_CLI_VERSION" alias set "$URL" "$GUROBEAN_CANONICAL_HOST" --token "$VERCEL_TOKEN"
           echo "CANONICAL_ALIAS_ATTACHED: PASS"
       - uses: actions/setup-python@v7
         with:
@@ -65,7 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Checking canonical production alias: $GUROBEAN_CANONICAL_URL"
-          npx --yes vercel@latest curl "$GUROBEAN_CANONICAL_URL/api/health" > canonical-health.json
+          npx --yes "vercel@$VERCEL_CLI_VERSION" curl "$GUROBEAN_CANONICAL_URL/api/health" > canonical-health.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -78,11 +81,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest curl "$GUROBEAN_CANONICAL_URL/" > canonical-ui.html
+          npx --yes "vercel@$VERCEL_CLI_VERSION" curl "$GUROBEAN_CANONICAL_URL/" > canonical-ui.html
           python - <<'PY'
           from pathlib import Path
           html = Path("canonical-ui.html").read_text(encoding="utf-8", errors="replace")
-          required = ["gurobean-readable-ui", "gurobean-premium-visual", "gurobean-visual-patch", "☕", "🧊", "🏆", "Decision Cockpit"]
+          required = ["gurobean-readable-ui", "gurobean-premium-visual", "gurobean-visual-patch", "☕", "🧊", "🏆", "Decision Cockpit", ".metric strong{font-size:34px!important}", ".round{min-height:104px!important"]
           missing = [marker for marker in required if marker not in html]
           if missing:
               raise SystemExit(f"CANONICAL_UI_MARKER_FAILURE: {missing}")

@@ -106,14 +106,21 @@ class EvaluateRequest(BaseModel):
     hours: int = Field(default=120, ge=1, le=240)
     warmup_hours: int = Field(default=0, ge=0, lt=240)
     barista_cost_per_hour: float = Field(default=0.0, ge=0)
+    dynamic: DynamicInput = Field(default_factory=DynamicInput)
 
     @model_validator(mode="after")
     def validate_evaluation(self) -> "EvaluateRequest":
-        values = self.model_dump()
+        values = self.model_dump(exclude={"dynamic"})
         if any(not isfinite(float(v)) for v in values.values() if isinstance(v, (int, float))):
             raise ValueError("evaluation numeric values must be finite")
         if self.warmup_hours >= self.hours:
             raise ValueError("warmup_hours must be smaller than hours")
+        if self.round_number >= 5 and self.dynamic.hours != self.hours:
+            raise ValueError("dynamic.hours must match evaluation hours")
+        if self.round_number >= 5 and self.dynamic.warmup_hours != self.warmup_hours:
+            raise ValueError("dynamic.warmup_hours must match evaluation warmup_hours")
+        if self.round_number >= 5 and self.dynamic.seed != self.seed:
+            raise ValueError("dynamic.seed must match evaluation seed")
         return self
 
 
@@ -202,6 +209,7 @@ def solve(request: SolveRequest) -> dict:
 def evaluate(request: EvaluateRequest) -> dict:
     try:
         scenario = Scenario(**request.scenario.model_dump())
+        dynamic = DynamicRoundParams(**request.dynamic.model_dump())
         cost = request.barista_cost_per_hour if request.round_number >= 8 else 0.0
         summary = evaluate_scenario(
             scenario,
@@ -214,6 +222,8 @@ def evaluate(request: EvaluateRequest) -> dict:
             hours=request.hours,
             warmup_hours=request.warmup_hours,
             barista_cost_per_hour=cost,
+            dynamic=dynamic if request.round_number >= 5 else None,
+            round_number=request.round_number,
         )
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

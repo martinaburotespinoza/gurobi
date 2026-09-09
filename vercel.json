@@ -8,11 +8,12 @@
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/favicon.ico", "dest": "/web/favicon.svg" },
     { "src": "/favicon.svg", "dest": "/web/favicon.svg" },
+    { "src": "/gurobean-logo.svg", "dest": "/web/gurobean-logo.svg" },
     { "src": "/capture", "dest": "/web/capture.html" },
     { "src": "/capture/", "dest": "/web/capture.html" },
     { "src": "/app", "dest": "/web/index.html" },
     { "src": "/app/", "dest": "/web/index.html" },
-    { "src": "/", "dest": "/index.html" }
+    { "src": "/", "dest": "/web/index.html" }
   ],
   "headers": [
     {
@@ -20,7 +21,8 @@
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ]

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+<title id="title">Gurobean Coffee Optimization Lab</title>
+<desc id="desc">Dark coffee shop scene with a steaming cup, beans and optimization accents.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#070e16"/><stop offset=".58" stop-color="#18202a"/><stop offset="1" stop-color="#32131d"/></linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#3a211c"/><stop offset="1" stop-color="#120c0d"/></linearGradient>
+  <linearGradient id="cup" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff9f4"/><stop offset=".72" stop-color="#ded8d2"/><stop offset="1" stop-color="#aaa49f"/></linearGradient>
+  <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff6b8a"/><stop offset="1" stop-color="#b52e4c"/></linearGradient>
+  <filter id="blur"><feGaussianBlur stdDeviation="16"/></filter>
+  <filter id="shadow"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-opacity=".55"/></filter>
+</defs>
+<rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+<ellipse cx="860" cy="155" rx="290" ry="150" fill="#f5a3a3" opacity=".11" filter="url(#blur)"/>
+<path d="M0 292 Q210 250 420 292 T840 288 T1200 294 V420 H0Z" fill="url(#wood)"/>
+<g opacity=".16" stroke="#d98b72" stroke-width="3"><path d="M0 330 C220 300 400 360 620 325 S970 300 1200 340"/><path d="M0 382 C220 350 400 405 620 370 S970 350 1200 390"/></g>
+<g filter="url(#shadow)">
+  <path d="M650 206 h210 v105 q0 46-48 52 h-114 q-48-6-48-52z" fill="url(#cup)"/>
+  <ellipse cx="755" cy="207" rx="105" ry="28" fill="#e8e1db"/>
+  <ellipse cx="755" cy="203" rx="91" ry="20" fill="#2a1713"/>
+  <ellipse cx="755" cy="200" rx="72" ry="13" fill="#5d3025" opacity=".7"/>
+  <path d="M860 230 q92-16 94 46 q2 57-95 34" fill="none" stroke="#ddd6d0" stroke-width="24"/>
+  <path d="M866 237 q62-7 64 39 q0 35-65 22" fill="none" stroke="#9e9894" stroke-width="8"/>
+</g>
+<g fill="#5b3024" opacity=".95">
+ <ellipse cx="510" cy="346" rx="24" ry="13" transform="rotate(-28 510 346)"/><ellipse cx="555" cy="369" rx="22" ry="12" transform="rotate(23 555 369)"/><ellipse cx="605" cy="344" rx="25" ry="13" transform="rotate(-8 605 344)"/><ellipse cx="915" cy="356" rx="24" ry="13" transform="rotate(17 915 356)"/><ellipse cx="972" cy="331" rx="22" ry="12" transform="rotate(-25 972 331)"/><ellipse cx="1020" cy="365" rx="24" ry="13" transform="rotate(10 1020 365)"/>
+</g>
+<g fill="none" stroke="#f7d9d9" stroke-width="7" stroke-linecap="round" opacity=".25">
+ <path d="M706 174 C670 145 728 121 699 91"/><path d="M760 171 C725 135 789 112 754 70"/><path d="M815 174 C850 145 790 119 824 88"/>
+</g>
+<g transform="translate(910 62)">
+ <rect width="210" height="92" rx="18" fill="#09131e" stroke="#334354"/>
+ <path d="M24 61 L55 45 L83 54 L116 30 L149 40 L181 20" fill="none" stroke="url(#pink)" stroke-width="5"/>
+ <circle cx="181" cy="20" r="6" fill="#ff6b8a"/>
+ <text x="22" y="26" fill="#9caaba" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">OPTIMIZATION LAB</text>
+ <text x="22" y="78" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">8 ROUNDS · AUDITABLE</text>
+</g>
+</svg>

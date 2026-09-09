@@ -292,7 +292,12 @@ def solve_dynamic_round(
 
     qh, qc, markup, service = best["values"]
     qh, qc = _project_feasible(qh, qc, sc)
-    metrics = best["metrics"]
+
+    # The stored best metrics can refer to the pre-projection candidate from an
+    # earlier coordinate pass. Recompute at the exact decision returned to the
+    # caller so /solve and /evaluate use the identical candidate and CRN seed.
+    metrics = _simulate_candidate(sc, params, round_number, qh, qc, markup, service)
+
     return {
         "Q_hot": float(qh),
         "Q_cold": float(qc),

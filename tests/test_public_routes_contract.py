@@ -20,10 +20,10 @@ def test_public_ui_is_not_empty_and_has_eight_rounds():
     assert response.status_code == 200
     text = response.text
     assert len(text) > 10000
+    assert "Decision Cockpit" in text
     assert "R1" in text and "R8" in text
     assert "R9" not in text
-    assert "Modo Personalizado" in text or "Personalizado" in text
-    assert "certificación final" in text
+    assert "gurobean-readable-ui" in text
 
 
 def test_capture_page_is_present():

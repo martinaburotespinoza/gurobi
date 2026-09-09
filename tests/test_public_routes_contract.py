@@ -8,7 +8,7 @@ from api.index import app as ui_app
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
+def test_vercel_routes_expose_capture_without_root_framework_rewrite():
     text = (ROOT / "vercel.json").read_text(encoding="utf-8")
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'entrypoint = "api.index:app"' in pyproject
@@ -20,7 +20,7 @@ def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
     rewrites = {item["source"]: item["destination"] for item in config["rewrites"]}
     assert rewrites["/capture"] == "/web/capture.html"
     assert rewrites["/capture/"] == "/web/capture.html"
-    assert rewrites["/"] == "/api/index.py/r2-cockpit"
+    assert "/" not in rewrites
 
 
 def test_r2_cockpit_is_served_by_fastapi_entrypoint():

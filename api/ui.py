@@ -13,38 +13,36 @@ body{font-size:16px!important}
 .pill{font-size:13px!important;padding:11px 14px!important}.btn{font-size:13px!important;padding:12px 15px!important}
 .mode{font-size:13px!important;padding:11px 15px!important}.eyebrow,.kicker{font-size:12px!important}
 .hero p{font-size:15px!important;line-height:1.75!important}.chip{font-size:12px!important;padding:9px 13px!important}
-.round{font-size:13px!important;padding:15px 7px!important}.round small{font-size:10px!important}
-.title{font-size:23px!important}.desc{font-size:13px!important}.badge{font-size:11px!important}
-.field label{font-size:12px!important}.field input,.field select,.chat input{font-size:14px!important;padding:12px!important}.field small{font-size:10px!important}
-.note{font-size:12px!important}.result-head span{font-size:11px!important}.result{font-size:12px!important;line-height:1.75!important}
-.metric small{font-size:10px!important}.metric strong{font-size:28px!important}.metric em{font-size:10px!important}
+.round{font-size:14px!important;padding:16px 7px!important;min-height:88px!important}.round small{font-size:10px!important}
+.title{font-size:24px!important}.desc{font-size:13px!important}.badge{font-size:11px!important}
+.field{min-height:124px!important;padding:15px!important}.field label{font-size:13px!important}.field input,.field select,.chat input{font-size:15px!important;padding:13px!important}.field small{font-size:10px!important}
+.note{font-size:12px!important}.result-head span{font-size:11px!important}.result{font-size:12px!important;line-height:1.8!important}
+.metric{min-height:128px!important;padding:18px!important}.metric small{font-size:10px!important}.metric strong{font-size:30px!important}.metric em{font-size:10px!important}
 .side-title h3{font-size:15px!important}.side-title span{font-size:11px!important}.status-line{font-size:13px!important}
 .status-card p,.side-section h4{font-size:11px!important}.map-item{font-size:11px!important;padding:11px 5px!important}.map-item span{font-size:9px!important}
 .event{font-size:11px!important}.cert b{font-size:13px!important}.cert span{font-size:10px!important}.answer{font-size:11px!important}
 .custom-panel label{font-size:11px!important}.custom-panel select{font-size:12px!important}.footer{font-size:10px!important}.toast{font-size:12px!important}
-/* Visual cockpit enhancement: larger modules, illustrated semantic icons and coffee motion */
-.logo{font-size:0!important;width:54px!important;height:54px!important;border-radius:16px!important;position:relative;overflow:hidden!important;background:linear-gradient(145deg,#162f4b,#07101e)!important}
-.logo:after{content:'☕';font-size:28px;filter:drop-shadow(0 4px 10px rgba(104,220,255,.3));animation:coffeePulse 2.8s ease-in-out infinite}
+/* Coffee visual layer: larger, illustrated, playful but premium */
+.logo{font-size:0!important;width:58px!important;height:58px!important;border-radius:17px!important;position:relative!important;overflow:visible!important;background:linear-gradient(145deg,#162f4b,#07101e)!important;display:grid!important;place-items:center!important}
+.logo:before{content:'☕';font-size:31px;filter:drop-shadow(0 5px 12px rgba(104,220,255,.35));animation:coffeePulse 2.8s ease-in-out infinite;z-index:2}
+.logo:after{content:'∿  ∿';position:absolute;top:-15px;left:12px;font-size:15px;letter-spacing:3px;color:rgba(242,247,255,.45);animation:steam 2.4s ease-in-out infinite}
 @keyframes coffeePulse{0%,100%{transform:translateY(1px) scale(1)}50%{transform:translateY(-3px) scale(1.08)}}
-.round{min-height:76px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important}
-.round:after{font-size:20px!important;line-height:1!important;content:'☕';opacity:.8;order:-1}
+@keyframes steam{0%,100%{opacity:.15;transform:translateY(4px)}50%{opacity:.8;transform:translateY(-4px)}}
+.round{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important}
+.round:after{font-size:25px!important;line-height:1!important;content:'☕';opacity:.9;order:-1;filter:drop-shadow(0 3px 7px rgba(104,220,255,.22))}
 .round[data-nav-round="1"]:after{content:'☕'}.round[data-nav-round="2"]:after{content:'🧊'}.round[data-nav-round="3"]:after{content:'📈'}.round[data-nav-round="4"]:after{content:'⚙️'}.round[data-nav-round="5"]:after{content:'👥'}.round[data-nav-round="6"]:after{content:'📦'}.round[data-nav-round="7"]:after{content:'💳'}.round[data-nav-round="8"]:after{content:'🏆'}
-.field{min-height:112px!important;padding:14px!important}.field label:before{content:'◉';color:var(--cyan);margin-right:7px;font-size:12px}
-.metric{min-height:112px!important;padding:17px!important;display:grid!important;grid-template-columns:42px 1fr!important;grid-template-rows:auto auto auto!important;column-gap:10px!important}
-.metric:before{grid-row:1/4;display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:rgba(104,220,255,.09);border:1px solid rgba(104,220,255,.16);font-size:23px;content:'☕';animation:metricFloat 3s ease-in-out infinite}
+.field{background:linear-gradient(145deg,rgba(255,255,255,.04),rgba(104,220,255,.015))!important}.field label:before{content:'◉';color:var(--cyan);margin-right:7px;font-size:12px}
+.metric{display:grid!important;grid-template-columns:50px 1fr!important;grid-template-rows:auto auto auto!important;column-gap:12px!important}
+.metric:before{grid-row:1/4;display:grid;place-items:center;width:50px;height:50px;border-radius:16px;background:rgba(104,220,255,.09);border:1px solid rgba(104,220,255,.16);font-size:27px;content:'☕';animation:metricFloat 3s ease-in-out infinite}
 .metric:nth-child(2):before{content:'❄️'}.metric:nth-child(3):before{content:'💰'}
 .metric small,.metric strong,.metric em{grid-column:2}
-@keyframes metricFloat{50%{transform:translateY(-3px) rotate(-2deg)}}
+@keyframes metricFloat{50%{transform:translateY(-4px) rotate(-2deg)}}
 .result-wrap{box-shadow:inset 0 0 0 1px rgba(104,220,255,.025),0 18px 50px rgba(0,0,0,.2)}
-.result-head:before{content:'🧠';font-size:17px;margin-right:7px}.result-head{justify-content:flex-start}.result-head span{margin-left:0}
-.status-line:before{content:'⚡';font-size:17px}.side-section h4:before{margin-right:6px}.side-section:nth-of-type(1) h4:before{content:'📡'}.side-section:nth-of-type(2) h4:before{content:'🗺️'}.side-section:nth-of-type(3) h4:before{content:'✨'}
-.event i{width:9px;height:9px;flex-basis:9px}.event i:after{content:''}
-.solve-btn{font-size:14px!important;padding:14px 18px!important;box-shadow:0 16px 38px rgba(65,119,255,.3)!important}
-.solve-btn:before{content:'☕ ';font-size:17px}
-.btn.primary:before{content:'✦ ';font-size:14px}
-.hero:after{content:'☕';position:absolute;right:34%;bottom:-30px;font-size:130px;opacity:.035;filter:blur(.3px);transform:rotate(-12deg);pointer-events:none;animation:heroCup 7s ease-in-out infinite}
-@keyframes heroCup{50%{transform:rotate(-7deg) translateY(-8px)}}
-@media(max-width:760px){.hero p{font-size:14px!important}.hero h2{font-size:40px!important}.round{min-height:70px!important}.metric strong{font-size:25px!important}}
+.result-head:before{content:'🧠';font-size:20px;margin-right:8px}.result-head{justify-content:flex-start}.result-head span{margin-left:0}
+.status-line:before{content:'⚡';font-size:19px}.side-section h4:before{margin-right:6px}.side-section:nth-of-type(1) h4:before{content:'📡'}.side-section:nth-of-type(2) h4:before{content:'🗺️'}.side-section:nth-of-type(3) h4:before{content:'✨'}
+.event i{width:9px;height:9px;flex-basis:9px}.solve-btn{font-size:15px!important;padding:15px 20px!important;box-shadow:0 16px 38px rgba(65,119,255,.3)!important}.solve-btn:before{content:'☕ ';font-size:19px}.btn.primary:before{content:'✦ ';font-size:15px}
+.hero:after{content:'☕';position:absolute;right:34%;bottom:-30px;font-size:145px;opacity:.04;filter:blur(.3px);transform:rotate(-12deg);pointer-events:none;animation:heroCup 7s ease-in-out infinite}@keyframes heroCup{50%{transform:rotate(-7deg) translateY(-8px)}}
+@media(max-width:760px){.hero p{font-size:14px!important}.hero h2{font-size:40px!important}.round{min-height:78px!important}.metric strong{font-size:27px!important}}
 @media(max-width:430px){.brand h1{font-size:18px!important}.hero h2{font-size:34px!important}.field input,.field select{font-size:15px!important}.btn,.mode{font-size:13px!important}}
 </style>'''
 
@@ -78,16 +76,9 @@ PATCH = r'''<script>
   const originalSolve=window.solve;
   window.solve=async function(){
     try{return await originalSolve();}
-    catch(e){
-      const n=document.getElementById('note');
-      if(n)n.textContent='Error ejecutando el motor: '+e.message;
-      throw e;
-    }
+    catch(e){const n=document.getElementById('note');if(n)n.textContent='Error ejecutando el motor: '+e.message;throw e;}
   };
-  window.compare=async function(){
-    const n=document.getElementById('note');
-    if(n)n.textContent='La comparación formal Gurobi ↔ SciPy requiere el entorno local con licencia Gurobi. Esta consola pública ejecuta la referencia SciPy y la simulación R5–R8.';
-  };
+  window.compare=async function(){const n=document.getElementById('note');if(n)n.textContent='La comparación formal Gurobi ↔ SciPy requiere el entorno local con licencia Gurobi. Esta consola pública ejecuta la referencia SciPy y la simulación R5–R8.';};
 })();
 </script>'''
 
@@ -118,5 +109,5 @@ def ui() -> HTMLResponse:
     for old, new in replacements.items():
         html = html.replace(old, new)
     html = html.replace('</head>', READABLE_UI + '</head>', 1)
-    html = html.replace('</body>', '<!-- READABLE UI + VISUAL COCKPIT -->' + VISUAL_PATCH + PATCH + '</body>')
+    html = html.replace('</body>', '<!-- READABLE UI + VISUAL COFFEE COCKPIT -->' + VISUAL_PATCH + PATCH + '</body>')
     return HTMLResponse(html)

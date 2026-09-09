@@ -14,7 +14,10 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-app = FastAPI(title="Gurobean Engine API", version="0.3.2", docs_url="/docs", redoc_url="/redoc")
+API_VERSION = "0.3.3"
+RELEASE_MARKER = "r9-release-candidate"
+
+app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 class ScenarioInput(BaseModel):
@@ -115,10 +118,6 @@ class SolveRequest(BaseModel):
 
     @model_validator(mode="after")
     def normalize_dynamic_against_scenario(self) -> "SolveRequest":
-        # The public R1 console can submit λ=15 while DynamicInput defaults to
-        # 36. Keep the API contract strict for explicit dynamic payloads, but
-        # make the public/default request self-consistent by clamping the
-        # reference arrival rate to the scenario's λ.
         if self.dynamic.arrival_reference_rate > self.scenario.lambda_total:
             self.dynamic = self.dynamic.model_copy(update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)})
         return self
@@ -160,7 +159,7 @@ def root():
 @app.get("/health")
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "service": "gurobean-engine", "version": "0.3.2", "ai": "grounded-local"}
+    return {"status": "ok", "service": "gurobean-engine", "version": API_VERSION, "release_marker": RELEASE_MARKER, "ai": "grounded-local"}
 
 @app.get("/metadata")
 @app.get("/api/metadata")

@@ -43,9 +43,10 @@ def _git_state() -> str:
     # change is still a hard release blocker.
     unexpected = [line for line in dirty if not line.endswith("r9_release_certification.json")]
     if unexpected:
+        unexpected_text = "\n".join(unexpected)
         raise RuntimeError(
             "working tree must be clean for certification; "
-            f"unexpected changes:\n{'\n'.join(unexpected)}"
+            f"unexpected changes:\n{unexpected_text}"
         )
     return sha
 

@@ -284,8 +284,10 @@ def solve_dynamic_round(
                 current = local_best[1]
                 if best is None or local_best[2]["expected_profit"] > best["metrics"]["expected_profit"]:
                     best = {"values": current, "metrics": local_best[2]}
-            qh, qc, markup, service = current
-            qh, qc = _project_feasible(qh, qc, sc)
+            qh, qc = _project_feasible(current[0], current[1], sc)
+            current = (qh, qc, current[2], current[3])
+
+        qh, qc, markup, service = current
 
     if best is None:
         raise RuntimeError("dynamic R5-R8 optimizer found no feasible candidate")
@@ -318,8 +320,5 @@ def solve_dynamic_round(
         "method": "common_random_numbers_monte_carlo_coordinate_search",
         "simulation_hours": params.hours,
         "replications": params.replications,
-        "seed": params.seed,
-        "operational": True,
-        "formal_game_certified": False,
-        "certification_note": "R5-R8 are executable simulation rounds; formal game parity requires real-game observations and evidence-gate promotion.",
+        "round": round_number,
     }

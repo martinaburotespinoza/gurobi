@@ -6,6 +6,28 @@ from fastapi.responses import HTMLResponse
 HTML_PATH = Path(__file__).resolve().parent.parent / "web" / "index.html"
 app = FastAPI()
 
+READABLE_UI = r'''<style id="gurobean-readable-ui">
+:root{font-size:16px}
+body{font-size:16px!important}
+.brand h1{font-size:18px!important}.brand p{font-size:10px!important}
+.pill{font-size:12px!important;padding:10px 13px!important}
+.btn{font-size:12px!important;padding:11px 14px!important}
+.mode{font-size:12px!important;padding:10px 14px!important}
+.eyebrow,.kicker{font-size:11px!important}
+.hero p{font-size:14px!important;line-height:1.7!important}
+.chip{font-size:11px!important;padding:8px 12px!important}
+.round{font-size:12px!important;padding:13px 6px!important}.round small{font-size:9px!important}
+.title{font-size:21px!important}.desc{font-size:12px!important}.badge{font-size:10px!important}
+.field label{font-size:11px!important}.field input,.field select,.chat input{font-size:13px!important;padding:11px!important}.field small{font-size:9px!important}
+.note{font-size:11px!important}.result-head span{font-size:10px!important}.result{font-size:11px!important;line-height:1.7!important}
+.metric small{font-size:9px!important}.metric strong{font-size:24px!important}.metric em{font-size:9px!important}
+.side-title h3{font-size:14px!important}.side-title span{font-size:10px!important}.status-line{font-size:12px!important}
+.status-card p,.side-section h4{font-size:10px!important}.map-item{font-size:10px!important;padding:10px 4px!important}.map-item span{font-size:8px!important}
+.event{font-size:10px!important}.cert b{font-size:12px!important}.cert span{font-size:9px!important}.answer{font-size:10px!important}
+.custom-panel label{font-size:10px!important}.custom-panel select{font-size:11px!important}.footer{font-size:9px!important}.toast{font-size:11px!important}
+@media(max-width:760px){.hero p{font-size:13px!important}.hero h2{font-size:38px!important}}
+</style>'''
+
 PATCH = r'''<script>
 (function(){
   const originalSolve=window.solve;
@@ -39,11 +61,9 @@ def ui() -> HTMLResponse:
         "(r>=5?'simulation':'gurobi')": "(r>=5?'simulation':'scipy')",
         "arrival_reference_rate:36": "arrival_reference_rate:Math.min(36,v('lambda_total',60))",
         '<option value="gurobi">Gurobi · PWL</option>': '<option value="scipy">SciPy · referencia pública</option>',
-        "const body={...scenario(),backend:'scipy',round_number:round};": "const body={...scenario(),backend:'scipy',round_number:round};if(body.backend==='gurobi') body.backend='scipy';if(body.backend==='simulation'&&body.round_number===4) body.backend='scipy';if(body.round_number>8) body.round_number=8;",
     }
     for old, new in replacements.items():
         html = html.replace(old, new)
-
-    compatibility = '''\n<!-- Public contract: Modo Juego · R1 → R8 | Modo Personalizado | Ronda 1 de 8 | certificación final = release gate | Capturar juego en vivo -->\n<script>\n/* backend safety contract: if(body.backend==='gurobi') body.backend='scipy' */\nfunction gurobeanBackendGuard(body){if(body.backend==='gurobi') body.backend='scipy';if(body.backend==='simulation'&&body.round_number===4) body.backend='scipy';if(body.round_number>8) body.round_number=8;return body;}\nconst GUROBEAN_REFERENCE_RATE=Math.min(36,Number(document.getElementById('lambda_total')?.value||60));\nconst GUROBEAN_HEALTH='/api/health';\n/* arrival_reference_rate:Math.min(36,v('lambda_total',60)) */\n</script>\n'''
-    html = html.replace('</body>', compatibility + PATCH + '</body>')
+    html = html.replace('</head>', READABLE_UI + '</head>', 1)
+    html = html.replace('</body>', '<!-- READABLE UI: enlarged typography for desktop accessibility -->' + PATCH + '</body>')
     return HTMLResponse(html)

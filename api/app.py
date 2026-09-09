@@ -74,8 +74,13 @@ class DynamicInput(BaseModel):
             raise ValueError("dynamic numeric values must be finite")
         if self.markup_max <= self.markup_min:
             raise ValueError("markup_max must be greater than markup_min")
-        if not self.service_rate_min <= self.service_rate_base <= self.service_rate_max:
-            raise ValueError("service_rate_base must be within service-rate bounds")
+        # Be tolerant of an older cached frontend. The service base must always
+        # be feasible; expand the bounds to include it rather than rejecting a
+        # stale payload with HTTP 422.
+        if self.service_rate_base < self.service_rate_min:
+            self.service_rate_min = self.service_rate_base
+        if self.service_rate_base > self.service_rate_max:
+            self.service_rate_max = self.service_rate_base
         if self.warmup_hours >= self.hours:
             raise ValueError("warmup_hours must be smaller than hours")
         if self.arrival_reference_rate > self.arrival_baseline_rate:

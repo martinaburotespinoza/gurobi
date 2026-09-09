@@ -21,6 +21,7 @@ CHECKS = [
     ("full_rounds", [sys.executable, "scripts/validate_full_rounds.py"]),
     ("r8_math_validation", [sys.executable, "scripts/r8_math_validation.py"]),
     ("r9_end_to_end_reference", [sys.executable, "scripts/r9_end_to_end.py"]),
+    ("production_http", [sys.executable, "scripts/validate_production.py"]),
 ]
 
 
@@ -42,6 +43,7 @@ def main() -> int:
     print("R1_R4: MATHEMATICALLY_VALIDATED")
     print("R5_R8: OPERATIONAL_AND_EVIDENCE_GATED")
     print("LOAD_BATTERY: INCLUDED_IN_PYTEST")
+    print("PRODUCTION_HTTP: CHECKED")
     print("R9: LICENSED_LOCAL_GUROBI_RUN_REQUIRED")
     print("REAL_GAME: OBSERVATIONS_AND_CALIBRATION_REQUIRED")
     return 0 if all(results) else 1

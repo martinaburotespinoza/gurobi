@@ -29,6 +29,16 @@ def _git_head() -> str | None:
         return None
 
 
+def _git_dirty() -> list[str]:
+    try:
+        output = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=ROOT, text=True, timeout=2
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ["GIT_STATUS_UNAVAILABLE"]
+    return [line for line in output.splitlines() if line.strip()]
+
+
 def _r9_artifact() -> dict:
     path = ROOT / "r9_release_certification.json"
     if not path.is_file():
@@ -67,7 +77,12 @@ def _gurobi() -> dict:
         return {"available": True, "version": None, "licensed": False, "error": type(exc).__name__}
 
 
-def _readiness(manifest: dict, artifact: dict, head: str | None, gb: dict) -> dict:
+def _readiness(manifest: dict, artifact: dict, head: str | None, dirty: list[str], gb: dict) -> dict:
+    # r9_release.py creates the certification artifact after its pre-run clean-tree
+    # check. Allow that single expected untracked artifact; any source change after
+    # certification invalidates readiness until the release gate is rerun.
+    source_dirty = [entry for entry in dirty if not entry.endswith("r9_release_certification.json")]
+    clean_enough = not source_dirty
     release_pass = (
         artifact.get("present") is True
         and artifact.get("status") == "PASS"
@@ -76,6 +91,7 @@ def _readiness(manifest: dict, artifact: dict, head: str | None, gb: dict) -> di
         and artifact.get("failures") == 0
         and head is not None
         and artifact.get("git_commit") == head
+        and clean_enough
     )
     reference_pass = manifest.get("gates", {}).get("r1_r4_reference") == "PASS"
     math_pass = manifest.get("gates", {}).get("r8_core_math_validation") == "PASS"
@@ -84,6 +100,14 @@ def _readiness(manifest: dict, artifact: dict, head: str | None, gb: dict) -> di
         for key in ("r5_markup_published_relationship", "r6_balking", "r7_multi_cup", "r8_service_rate")
     )
     approved = bool(release_pass and reference_pass and math_pass)
+    blockers = [] if approved else [
+        reason for reason, failed in (
+            ("R1-R4 reference gate", not reference_pass),
+            ("R8 mathematical validation", not math_pass),
+            ("licensed Gurobi release artifact tied to current HEAD", not release_pass),
+            ("source tree changed after certification", bool(source_dirty)),
+        ) if failed
+    ]
     return {
         "approved_for_live_game_test": approved,
         "label": "APPROVED_FOR_LIVE_GAME_TEST" if approved else "NOT_READY",
@@ -91,14 +115,9 @@ def _readiness(manifest: dict, artifact: dict, head: str | None, gb: dict) -> di
         "r8_core_math": math_pass,
         "licensed_gurobi": bool(gb.get("licensed")),
         "r9_release": release_pass,
+        "source_tree_clean": clean_enough,
         "r5_r8_calibration_gated": evidence_gated,
-        "blocking_reasons": [] if approved else [
-            reason for reason, failed in (
-                ("R1-R4 reference gate", not reference_pass),
-                ("R8 mathematical validation", not math_pass),
-                ("licensed Gurobi release artifact tied to current HEAD", not release_pass),
-            ) if failed
-        ],
+        "blocking_reasons": blockers,
     }
 
 
@@ -107,14 +126,15 @@ def _readiness(manifest: dict, artifact: dict, head: str | None, gb: dict) -> di
 def status() -> dict:
     manifest = _manifest()
     head = _git_head()
+    dirty = _git_dirty()
     gb = _gurobi()
     artifact = _r9_artifact()
-    readiness = _readiness(manifest, artifact, head, gb)
+    readiness = _readiness(manifest, artifact, head, dirty, gb)
     gates = manifest.get("gates", {})
     return {
         "ok": True,
         "service": "gurobean-engine",
-        "git": {"head": head, "release_line": manifest.get("release_line")},
+        "git": {"head": head, "release_line": manifest.get("release_line"), "dirty": dirty},
         "gurobi": gb,
         "certification": {
             "manifest_status": manifest.get("status", "UNKNOWN"),
@@ -130,6 +150,7 @@ def status() -> dict:
             "synthetic_evidence_can_promote": False,
             "release_requires_post_patch_validation": True,
             "r9_artifact_must_match_current_head": True,
+            "source_changes_invalidate_readiness": True,
         },
     }
 

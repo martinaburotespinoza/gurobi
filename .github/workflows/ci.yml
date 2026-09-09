@@ -57,25 +57,6 @@ jobs:
       - run: python scripts/public_contract_smoke.py
       - run: python scripts/validate_all.py
       - run: python scripts/validate_full_rounds.py
-      - name: Run production validation with diagnostic capture
-        shell: bash
-        run: |
-          set +e
-          python scripts/validate_production.py > production-validation.txt 2>&1
-          rc=$?
-          cat production-validation.txt
-          echo "$rc" > production-validation-exit-code.txt
-          exit "$rc"
-      - name: Upload production diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-validation-diagnostics
-          path: |
-            production-validation.txt
-            production-validation-exit-code.txt
-            validation_report.json
-          if-no-files-found: warn
       - run: python scripts/self_audit.py
       - run: python scripts/check_gurobi.py
         continue-on-error: true
@@ -84,3 +65,4 @@ jobs:
           echo 'CI reference validation is complete.'
           echo 'Licensed real-Gurobi certification remains a mandatory local release gate.'
           echo 'No CI fallback is allowed to represent a Gurobi PASS.'
+          echo 'Production HTTP validation is performed by the Vercel deployment workflow after production deployment.'

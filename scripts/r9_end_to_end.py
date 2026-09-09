@@ -131,7 +131,25 @@ def _reference(sc, r):
     if r in (1, 3):
         hh, _ = _round_bounds(sc, False, r in (3, 4))
         q = max(0.0, min(hh, _stationary_q(sc, r, True)))
-        return {"Q_hot": float(q), "Q_cold": 0.0, "objective": float(_objective(sc, r, q, 0.0))}
+
+        # Q=0 is an explicit feasible candidate with objective exactly zero.
+        # The continuous Normal approximation can produce a negative
+        # expectation for small positive Q because it permits negative demand.
+        # Therefore the positive stationary point must be compared against
+        # the boundary Q=0 before being accepted as the global optimum.
+        candidates = [
+            (0.0, 0.0),
+            (float(q), 0.0),
+        ]
+        qh, qc = max(
+            candidates,
+            key=lambda x: _objective(sc, r, *x),
+        )
+        return {
+            "Q_hot": float(qh),
+            "Q_cold": float(qc),
+            "objective": float(_objective(sc, r, qh, qc)),
+        }
     vs = _vertices(sc, r)
     hh, ch = _round_bounds(sc, True, r == 4)
     s = np.array([min(hh, _stationary_q(sc, r, True)), min(ch, _stationary_q(sc, r, False))])

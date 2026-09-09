@@ -14,10 +14,7 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-API_VERSION = "0.3.3"
-RELEASE_MARKER = "r9-release-candidate"
-
-app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
+app = FastAPI(title="Gurobean Engine API", version="0.3.0", docs_url="/docs", redoc_url="/redoc")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 class ScenarioInput(BaseModel):
@@ -88,40 +85,6 @@ class SolveRequest(BaseModel):
     backend: Literal["scipy", "gurobi", "closed_form", "simulation"] = "scipy"
     dynamic: DynamicInput = Field(default_factory=DynamicInput)
 
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_public_payload(cls, data):
-        if not isinstance(data, dict) or "scenario" in data:
-            return data
-        scenario_fields = {"lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold", "salvage_hot", "salvage_cold", "beans_available", "water_available", "beans_hot", "beans_cold", "water_hot", "water_cold"}
-        scenario = {key: data[key] for key in scenario_fields if key in data}
-        if not scenario:
-            return data
-        cold = float(scenario.get("p_cold", 0)) > 0
-        scenario.setdefault("p_hot", 0.7 if cold else 1.0)
-        scenario.setdefault("p_cold", 0.3 if cold else 0.0)
-        scenario.setdefault("revenue_cold", scenario.get("revenue_hot", 0.0))
-        scenario.setdefault("cost_hot", 0.0)
-        scenario.setdefault("cost_cold", 0.0)
-        scenario.setdefault("salvage_hot", 0.0)
-        scenario.setdefault("salvage_cold", 0.0)
-        scenario.setdefault("beans_hot", 10.0)
-        scenario.setdefault("beans_cold", scenario.get("beans_hot", 10.0))
-        scenario.setdefault("water_hot", 6.0)
-        scenario.setdefault("water_cold", scenario.get("water_hot", 6.0))
-        scenario.setdefault("beans_available", 0.0)
-        scenario.setdefault("water_available", 0.0)
-        scenario.setdefault("lambda_total", 0.0)
-        data = dict(data)
-        data["scenario"] = scenario
-        return data
-
-    @model_validator(mode="after")
-    def normalize_dynamic_against_scenario(self) -> "SolveRequest":
-        if self.dynamic.arrival_reference_rate > self.scenario.lambda_total:
-            self.dynamic = self.dynamic.model_copy(update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)})
-        return self
-
 class EvaluateRequest(BaseModel):
     round_number: int = Field(ge=1, le=8)
     scenario: ScenarioInput
@@ -159,7 +122,7 @@ def root():
 @app.get("/health")
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "service": "gurobean-engine", "version": API_VERSION, "release_marker": RELEASE_MARKER, "ai": "grounded-local"}
+    return {"status": "ok", "service": "gurobean-engine", "version": "0.3.0", "ai": "grounded-local"}
 
 @app.get("/metadata")
 @app.get("/api/metadata")

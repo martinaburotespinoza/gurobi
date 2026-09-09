@@ -14,7 +14,7 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-API_VERSION = "0.3.6"
+API_VERSION = "0.3.7"
 RELEASE_MARKER = "r9-release-candidate"
 
 app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
@@ -40,12 +40,7 @@ class ScenarioInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_scenario_contract(self) -> "ScenarioInput":
-        names = (
-            "lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold",
-            "cost_hot", "cost_cold", "salvage_hot", "salvage_cold",
-            "beans_available", "water_available", "beans_hot", "beans_cold",
-            "water_hot", "water_cold",
-        )
+        names = ("lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold", "salvage_hot", "salvage_cold", "beans_available", "water_available", "beans_hot", "beans_cold", "water_hot", "water_cold")
         if any(not isfinite(getattr(self, name)) for name in names):
             raise ValueError("scenario numeric values must be finite")
         if abs((self.p_hot + self.p_cold) - 1.0) > 1e-12:
@@ -101,12 +96,7 @@ class SolveRequest(BaseModel):
     def normalize_public_payload(cls, data):
         if not isinstance(data, dict) or "scenario" in data:
             return data
-        fields = {
-            "lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold",
-            "cost_hot", "cost_cold", "salvage_hot", "salvage_cold",
-            "beans_available", "water_available", "beans_hot", "beans_cold",
-            "water_hot", "water_cold",
-        }
+        fields = {"lambda_total", "p_hot", "p_cold", "revenue_hot", "revenue_cold", "cost_hot", "cost_cold", "salvage_hot", "salvage_cold", "beans_available", "water_available", "beans_hot", "beans_cold", "water_hot", "water_cold"}
         scenario = {k: data[k] for k in fields if k in data}
         if not scenario:
             return data
@@ -196,7 +186,7 @@ def root():
     if not frontend.is_file():
         raise HTTPException(status_code=500, detail="web/index.html not found")
     html = frontend.read_text(encoding="utf-8")
-    if "id=\"gurobean-public-adapter\"" not in html:
+    if 'id="gurobean-public-adapter"' not in html:
         html = html.replace("</body>", PUBLIC_UI_ADAPTER + "</body>")
     return HTMLResponse(html)
 
@@ -210,25 +200,35 @@ def health() -> dict:
 @app.get("/status")
 @app.get("/api/status")
 def status() -> dict:
+    from api.public_router import _manifest, _git_head, _git_dirty, _gurobi, _r9_artifact, _readiness
+    manifest = _manifest()
+    head = _git_head()
+    dirty = _git_dirty()
+    gb = _gurobi()
+    artifact = _r9_artifact()
+    readiness = _readiness(manifest, artifact, head, dirty, gb)
+    gates = manifest.get("gates", {})
     return {
         "ok": True,
         "service": "gurobean-engine",
         "version": API_VERSION,
-        "readiness": {
-            "api": True,
-            "rounds_1_8": True,
-            "r1_r4_mathematical_scope": True,
-            "r5_r8_calibration_gated": True,
+        "git": {"head": head, "release_line": manifest.get("release_line"), "dirty": dirty},
+        "gurobi": gb,
+        "readiness": readiness,
+        "certification": {
+            "manifest_status": manifest.get("status", "UNKNOWN"),
+            "r1_r4_reference": gates.get("r1_r4_reference"),
+            "r8_core_math_validation": gates.get("r8_core_math_validation"),
+            "r9_release": gates.get("r9_release"),
+            "r9_artifact": artifact,
+            "real_game_evidence": all(gates.get(k) == "PASS" for k in ("r5_markup_published_relationship", "r6_balking", "r7_multi_cup", "r8_service_rate")),
         },
         "truth_policy": {
             "missing_gurobi_is_pass": False,
             "synthetic_evidence_can_promote": False,
+            "release_requires_post_patch_validation": True,
             "r9_artifact_must_match_current_head": True,
-        },
-        "certification": {
-            "r1_r4": "MATHEMATICAL_SCOPE",
-            "r5_r8": "CALIBRATION_GATED",
-            "r9": "LICENSED_GATE_REQUIRED",
+            "source_changes_invalidate_readiness": True,
         },
     }
 
@@ -237,12 +237,7 @@ def status() -> dict:
 @app.get("/api/metadata")
 def metadata() -> dict:
     return {
-        "rounds": {
-            "implemented": list(range(1, 9)),
-            "analytical_gurobi_certified": [1, 2, 3, 4],
-            "simulation_enabled": [5, 6, 7, 8],
-            "formal_game_certification_required": [5, 6, 7, 8],
-        },
+        "rounds": {"implemented": list(range(1, 9)), "analytical_gurobi_certified": [1, 2, 3, 4], "simulation_enabled": [5, 6, 7, 8], "formal_game_certification_required": [5, 6, 7, 8]},
         "backends": ["scipy", "gurobi", "closed_form", "simulation"],
         "gurobi_backend": "solver-backed-pwl-for-r1-r4",
         "gurobi_license_required": True,
@@ -313,27 +308,7 @@ def evaluate(request: EvaluateRequest) -> dict:
         scenario = Scenario(**request.scenario.model_dump())
         dynamic = DynamicRoundParams(**request.dynamic.model_dump())
         cost = request.barista_cost_per_hour if request.round_number >= 8 else 0.0
-        summary = evaluate_scenario(
-            scenario,
-            markup=request.markup,
-            q_hot=request.q_hot,
-            q_cold=request.q_cold,
-            service_rate=request.service_rate,
-            replications=request.replications,
-            seed=request.seed,
-            hours=request.hours,
-            warmup_hours=request.warmup_hours,
-            barista_cost_per_hour=cost,
-            dynamic=dynamic if request.round_number >= 5 else None,
-            round_number=request.round_number,
-        )
+        summary = evaluate_scenario(scenario, markup=request.markup, q_hot=request.q_hot, q_cold=request.q_cold, service_rate=request.service_rate, replications=request.replications, seed=request.seed, hours=request.hours, warmup_hours=request.warmup_hours, barista_cost_per_hour=cost, dynamic=dynamic if request.round_number >= 5 else None, round_number=request.round_number)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {
-        "ok": True,
-        "round": request.round_number,
-        "candidate": {"Q_hot": request.q_hot, "Q_cold": request.q_cold, "markup": request.markup, "service_rate": request.service_rate},
-        "evaluation": summary.as_dict(),
-        "formal_game_certified": False,
-        "note": "Evaluation is a repeated simulation estimate; it is not a Gurobean game certification claim.",
-    }
+    return {"ok": True, "round": request.round_number, "candidate": {"Q_hot": request.q_hot, "Q_cold": request.q_cold, "markup": request.markup, "service_rate": request.service_rate}, "evaluation": summary.as_dict(), "formal_game_certified": False, "note": "Evaluation is a repeated simulation estimate; it is not a Gurobean game certification claim."}

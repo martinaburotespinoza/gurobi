@@ -61,6 +61,14 @@ def ui() -> HTMLResponse:
         "(r>=5?'simulation':'gurobi')": "(r>=5?'simulation':'scipy')",
         "arrival_reference_rate:36": "arrival_reference_rate:Math.min(36,v('lambda_total',60))",
         '<option value="gurobi">Gurobi · PWL</option>': '<option value="scipy">SciPy · referencia pública</option>',
+        "fetch('/solve'": "fetch('/api/solve'",
+        'fetch("/solve"': 'fetch("/api/solve"',
+        "fetch('/health'": "fetch('/api/health'",
+        'fetch("/health"': 'fetch("/api/health"',
+        "fetch('/evaluate'": "fetch('/api/evaluate'",
+        'fetch("/evaluate"': 'fetch("/api/evaluate"',
+        "fetch('/ai/ask'": "fetch('/api/ai/ask'",
+        'fetch("/ai/ask"': 'fetch("/api/ai/ask"',
     }
     for old, new in replacements.items():
         html = html.replace(old, new)

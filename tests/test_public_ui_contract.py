@@ -1,8 +1,11 @@
 """Regression tests for the current public HTML delivery layer."""
 
+import inspect
+
 from fastapi.testclient import TestClient
 
 from api.ui import app
+import api.ui as ui_module
 
 
 def test_public_ui_renders_current_cockpit_without_r9_round():
@@ -18,6 +21,9 @@ def test_public_ui_renders_current_cockpit_without_r9_round():
 
 def test_public_ui_exposes_safe_reference_backend_contract():
     html = TestClient(app).get("/").text
-    assert "/api/solve" in html
-    assert "/api/health" in html
-    assert "/api/ai/ask" in html
+    source = inspect.getsource(ui_module.ui)
+    assert "fetch('/api/solve'" in source
+    assert "fetch('/api/health'" in source
+    assert "fetch('/api/evaluate'" in source
+    assert "fetch('/api/ai/ask'" in source
+    assert "gurobean-readable-ui" in html

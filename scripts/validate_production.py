@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gurobean.validation import monte_carlo_newsvendor_check
 from gurobean.simulation import simulate_queue
 
-DEFAULT_PRODUCTION_URL = "https://gurobi-rho.vercel.app"
+# Canonical production hostname. CI may override this with the exact URL returned
+# by the Vercel deployment command, which also supports protected deployments.
+DEFAULT_PRODUCTION_URL = "https://gurobean-engine-v2-6.vercel.app"
 
 
 def _http_json(base_url: str, path: str, *, method: str = "GET", payload: dict | None = None, attempts: int = 5) -> dict:

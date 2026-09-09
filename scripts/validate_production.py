@@ -27,9 +27,10 @@ def _http_json(base_url: str, path: str, *, method: str = "GET", payload: dict |
         token = os.environ.get("VERCEL_TOKEN")
         if not token:
             raise RuntimeError("VERCEL_TOKEN is required for protected production validation")
-        # Native curl syntax is supported by current Vercel CLI. Do not use -sS:
-        # Vercel CLI reserves -S for --scope.
-        args = ["npx", "--yes", "vercel@latest", "curl", url, "--token", token]
+        # `vercel curl` uses the VERCEL_TOKEN environment variable for auth.
+        # Do not pass --token after the URL: native curl syntax forwards unknown
+        # flags to curl, where --token is invalid.
+        args = ["npx", "--yes", "vercel@latest", "curl", url]
         if method != "GET":
             args += ["-X", method]
         if payload is not None:

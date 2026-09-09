@@ -9,7 +9,11 @@
     {"source":"/favicon.ico","destination":"/web/favicon.svg"},
     {"source":"/favicon.svg","destination":"/web/favicon.svg"},
     {"source":"/capture","destination":"/web/capture.html"},
-    {"source":"/capture/","destination":"/web/capture.html"}
+    {"source":"/capture/","destination":"/web/capture.html"},
+    {"source":"/","destination":"/web/r2-cockpit.html"}
   ],
-  "headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}]
+  "headers":[
+    {"source":"/api/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"SAMEORIGIN"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]},
+    {"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"}]}
+  ]
 }

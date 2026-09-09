@@ -29,11 +29,16 @@ jobs:
             exit 1
           fi
           echo "VERCEL_TOKEN is available to the deployment job."
+      - name: Link canonical Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes vercel@latest link --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN"
       - name: Deploy production to canonical Vercel project
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@latest deploy --prod --yes --name "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
+          npx --yes vercel@latest deploy --prod --yes --project "$GUROBEAN_VERCEL_PROJECT" --token "$VERCEL_TOKEN" 2>&1 | tee vercel-deploy.log
           URL=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
           if [ -z "$URL" ]; then
             echo "Could not determine the production deployment URL."

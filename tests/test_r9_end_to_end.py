@@ -9,15 +9,14 @@ def test_r9_end_to_end_reference_certification(tmp_path, monkeypatch):
     assert main([]) == 0
 
     artifact = json.loads(Path("r9_end_to_end.json").read_text(encoding="utf-8"))
-    assert artifact["status"] == "PASS"
     assert artifact["total_cases"] == 400
     assert artifact["reference_failures"] == 0
     assert artifact["gurobi_failures"] == 0
 
-    # The artifact schema evolved from an implicit gate state to an explicit
-    # `gurobi_gate` field.  Accept the legacy representation only when it is
-    # unambiguously derivable from the recorded solver-case count; never infer
-    # a Gurobi PASS from the overall R9 status alone.
+    # R9 has two honest states: a full PASS when Gurobi is checked, and a
+    # reference-only pass when the environment has no Gurobi installation.
+    # Never accept a missing/unknown status and never infer a Gurobi PASS from
+    # the overall status alone.
     gate = artifact.get("gurobi_gate")
     if gate is None:
         gate = (
@@ -26,6 +25,13 @@ def test_r9_end_to_end_reference_certification(tmp_path, monkeypatch):
             else "NOT_AVAILABLE_IN_ENVIRONMENT"
         )
     assert gate in {"CHECKED", "NOT_AVAILABLE_IN_ENVIRONMENT"}
+
+    if gate == "CHECKED":
+        assert artifact["status"] == "PASS"
+        assert artifact["gurobi_cases_checked"] == 400
+    else:
+        assert artifact["status"] == "REFERENCE_PASS_GUROBI_UNCHECKED"
+        assert artifact["gurobi_cases_checked"] == 0
 
     if artifact.get("require_gurobi", False):
         assert artifact["gurobi_cases_checked"] == 400

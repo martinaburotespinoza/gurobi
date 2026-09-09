@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HTML = ROOT / "index.html"
+HTML = ROOT / "web" / "index.html"
 
 
 def main() -> None:
@@ -27,7 +27,7 @@ def main() -> None:
         Path(script_path).unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"PUBLIC HTML SMOKE: FAIL — JavaScript syntax error\n{result.stderr}")
-    required = ("/api/health", "/api/solve", "addEventListener", "R1", "R8")
+    required = ("/api/health", "/api/solve", "/api/ai/ask", "addEventListener", "R1", "R8", "Decision Cockpit")
     missing = [token for token in required if token not in text]
     if missing:
         raise SystemExit(f"PUBLIC HTML SMOKE: FAIL — missing contract tokens: {missing}")

@@ -3,7 +3,7 @@ import pytest
 
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 from gurobean.model import Scenario
-from gurobean.simulation import GurobeanSimulationConfig, simulate_gurobean
+from gurobean.simulation import GurobeanSimulationConfig, _draw_order_size, simulate_gurobean
 
 
 def _scenario():
@@ -21,6 +21,18 @@ def _scenario():
         beans_cold=1.0,
         water_hot=1.0,
         water_cold=1.0,
+    )
+
+
+def _dynamic_params():
+    return DynamicRoundParams(
+        arrival_baseline_rate=20.0,
+        arrival_reference_rate=10.0,
+        reference_markup=1.0,
+        hours=2,
+        replications=1,
+        coordinate_points=3,
+        seed=11,
     )
 
 
@@ -48,24 +60,21 @@ def test_zero_arrivals_produce_no_customers_and_finite_economics():
     assert np.isfinite(economics["profit"])
 
 
-def test_invalid_order_sampler_cannot_silently_create_zero_cup_orders():
+def test_invalid_order_sampler_is_rejected_at_draw_time():
     cfg = GurobeanSimulationConfig(
-        hours=1, seed=1, lambda_rate=1.0, p_hot=1.0, p_cold=0.0,
+        hours=1, seed=1, lambda_rate=0.0, p_hot=1.0, p_cold=0.0,
         mu_rate=30.0, brew_hot_per_hour=10.0,
         order_size_sampler=lambda _rng: 0,
     )
     with pytest.raises(ValueError, match="order_size_sampler"):
-        simulate_gurobean(cfg)
+        _draw_order_size(cfg, np.random.default_rng(cfg.seed))
 
 
 def test_dynamic_round_returns_resource_feasible_decision():
-    result = solve_dynamic_round(
-        _scenario(),
-        8,
-        DynamicRoundParams(hours=2, replications=1, coordinate_points=3, seed=11),
-    )
+    sc = _scenario()
+    result = solve_dynamic_round(sc, 8, _dynamic_params())
     assert result["Q_hot"] >= 0
     assert result["Q_cold"] >= 0
-    assert _scenario().beans_hot * result["Q_hot"] + _scenario().beans_cold * result["Q_cold"] <= _scenario().beans_available + 1e-9
-    assert _scenario().water_hot * result["Q_hot"] + _scenario().water_cold * result["Q_cold"] <= _scenario().water_available + 1e-9
+    assert sc.beans_hot * result["Q_hot"] + sc.beans_cold * result["Q_cold"] <= sc.beans_available + 1e-9
+    assert sc.water_hot * result["Q_hot"] + sc.water_cold * result["Q_cold"] <= sc.water_available + 1e-9
     assert result["objective"] == result["expected_profit"]

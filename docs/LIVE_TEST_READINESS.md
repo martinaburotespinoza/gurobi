@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the final engineering boundary before using Gurobean Engine v2_6 against the real game. It separates what the repository can prove automatically from what must be observed in the real game or verified with a licensed local Gurobi environment.
+This document is the final engineering boundary before using Gurobean Engine v2_6 against the real game. It separates what the repository can prove automatically from what must be observed in the real game or verified with a licensed Gurobi environment.
 
 ## Verified engineering layers
 
@@ -37,9 +37,28 @@ Run the repository-wide non-licensed preflight:
 python scripts/pre_live_game_check.py
 ```
 
-A successful preflight means the software gates that do not require proprietary credentials are green. It does **not** fabricate the two external gates below.
+A successful preflight means the software gates that do not require proprietary credentials are green. It does **not** fabricate the licensed solver gate or real-game evidence gate.
 
-## Two remaining external gates
+## Final live-test approval command
+
+After the licensed R9 release run completes successfully, run:
+
+```powershell
+python scripts/final_live_test_gate.py
+```
+
+The command returns the exact approval string only when:
+
+- `r9_release_certification.json` exists and says `R9 STATUS: PASS`.
+- `GUROBI_GATE` is `CHECKED`.
+- Exactly 400 R1–R4 case/round checks were executed.
+- Zero release failures were recorded.
+- The artifact's Git commit exactly matches the current `HEAD`.
+- No source files changed after certification.
+
+The generated R9 artifact is intentionally not committed to Git: committing it would change `HEAD` and invalidate its exact-commit attestation. Preserve it as release evidence or a CI artifact instead.
+
+## External gates
 
 1. **Licensed Gurobi release gate**
    - Clean working tree.
@@ -57,20 +76,24 @@ A successful preflight means the software gates that do not require proprietary 
    - Freeze promoted parameters into a reproducible artifact.
    - Add regression coverage before claiming formal game parity.
 
+The first gate is required for **approval to test with the live game**. The second gate is required for **formal promotion of R5–R8 as game-parity rules**.
+
 ## Operational test protocol
 
 When the real game is available, test in this order:
 
 1. Freeze the exact Git commit and environment.
-2. Execute the licensed R9 release gate.
-3. Establish a baseline game run without engine intervention.
-4. Capture R5–R8 observations with timestamps/round identifiers and provenance.
-5. Calibrate one mechanism at a time: arrivals, balking, multi-cup demand, service rate/cost.
-6. Hold out observations for out-of-sample validation.
-7. Freeze only validated parameters.
-8. Re-run the engine against the same observed scenarios.
-9. Compare decisions and economic/operational outcomes.
-10. Only then consider production promotion of R5–R8.
+2. Run `python scripts/check_gurobi.py`.
+3. Run `python scripts/r9_release.py`.
+4. Run `python scripts/final_live_test_gate.py`.
+5. Establish a baseline game run without engine intervention.
+6. Capture R5–R8 observations with timestamps/round identifiers and provenance.
+7. Calibrate one mechanism at a time: arrivals, balking, multi-cup demand, service rate/cost.
+8. Hold out observations for out-of-sample validation.
+9. Freeze only validated parameters.
+10. Re-run the engine against the same observed scenarios.
+11. Compare decisions and economic/operational outcomes.
+12. Only then consider production promotion of R5–R8.
 
 ## Non-negotiable rule
 

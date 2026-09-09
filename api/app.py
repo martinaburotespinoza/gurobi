@@ -14,7 +14,7 @@ from gurobean.assistant import ask as ask_assistant, evidence_context
 from gurobean.evaluation import evaluate_scenario
 from gurobean.full_rounds import DynamicRoundParams, solve_dynamic_round
 
-API_VERSION = "0.3.5"
+API_VERSION = "0.3.6"
 RELEASE_MARKER = "r9-release-candidate"
 
 app = FastAPI(title="Gurobean Engine API", version=API_VERSION, docs_url="/docs", redoc_url="/redoc")
@@ -132,9 +132,7 @@ class SolveRequest(BaseModel):
     @model_validator(mode="after")
     def normalize_dynamic_against_scenario(self) -> "SolveRequest":
         if self.dynamic.arrival_reference_rate > self.scenario.lambda_total:
-            self.dynamic = self.dynamic.model_copy(
-                update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)}
-            )
+            self.dynamic = self.dynamic.model_copy(update={"arrival_reference_rate": max(self.scenario.lambda_total, 1e-9)})
         return self
 
 
@@ -166,7 +164,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
 
 
-PUBLIC_UI_ADAPTER = r'''<script>
+PUBLIC_UI_ADAPTER = r'''<script id="gurobean-public-adapter">
 (function(){
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async function(input, init){
@@ -179,9 +177,7 @@ PUBLIC_UI_ADAPTER = r'''<script>
           if (body.backend === 'simulation' && Number(body.round_number) === 4) body.round_number = 8;
           if (body.dynamic && body.scenario && Number.isFinite(Number(body.scenario.lambda_total))) {
             const lambda = Number(body.scenario.lambda_total);
-            if (Number(body.dynamic.arrival_reference_rate) > lambda) {
-              body.dynamic.arrival_reference_rate = Math.max(lambda, 1e-9);
-            }
+            if (Number(body.dynamic.arrival_reference_rate) > lambda) body.dynamic.arrival_reference_rate = Math.max(lambda, 1e-9);
           }
           init = {...init, body: JSON.stringify(body)};
         }
@@ -200,7 +196,7 @@ def root():
     if not frontend.is_file():
         raise HTTPException(status_code=500, detail="web/index.html not found")
     html = frontend.read_text(encoding="utf-8")
-    if "PUBLIC_UI_ADAPTER" not in html:
+    if "id=\"gurobean-public-adapter\"" not in html:
         html = html.replace("</body>", PUBLIC_UI_ADAPTER + "</body>")
     return HTMLResponse(html)
 
@@ -209,6 +205,32 @@ def root():
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "service": "gurobean-engine", "version": API_VERSION, "release_marker": RELEASE_MARKER, "ai": "grounded-local"}
+
+
+@app.get("/status")
+@app.get("/api/status")
+def status() -> dict:
+    return {
+        "ok": True,
+        "service": "gurobean-engine",
+        "version": API_VERSION,
+        "readiness": {
+            "api": True,
+            "rounds_1_8": True,
+            "r1_r4_mathematical_scope": True,
+            "r5_r8_calibration_gated": True,
+        },
+        "truth_policy": {
+            "missing_gurobi_is_pass": False,
+            "synthetic_evidence_can_promote": False,
+            "r9_artifact_must_match_current_head": True,
+        },
+        "certification": {
+            "r1_r4": "MATHEMATICAL_SCOPE",
+            "r5_r8": "CALIBRATION_GATED",
+            "r9": "LICENSED_GATE_REQUIRED",
+        },
+    }
 
 
 @app.get("/metadata")

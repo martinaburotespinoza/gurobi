@@ -67,3 +67,5 @@ Then use `/docs` locally.
 ## Gurobi backend
 
 The Gurobi adapter is deliberately a validation layer around the exact analytical objective. Normal CDF/PDF are represented with dense solver-backed PWL constraints; the analytical objective remains the independent mathematical reference. No Gurobi result is treated as an exact continuous certificate merely because the optimizer reports `OPTIMAL`.
+
+<!-- production deploy trigger: 2026-09-09 -->

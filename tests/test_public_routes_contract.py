@@ -7,15 +7,14 @@ from api.ui import app as ui_app
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_vercel_routes_expose_app_and_capture():
+def test_vercel_routes_expose_capture_and_pin_fastapi_entrypoint():
     text = (ROOT / "vercel.json").read_text(encoding="utf-8")
-    assert '"source":"/api/:path*"' in text
-    assert '"destination":"/api/index.py/:path*"' in text
-    assert '"source":"/app"' in text
-    assert '"destination":"/api/index.py"' in text
-    assert '"source":"/"' in text
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'entrypoint = "api/index.py"' in pyproject
     assert '"source":"/capture"' in text
     assert '"destination":"/web/capture.html"' in text
+    assert '"source":"/api/:path*"' not in text
+    assert '"source":"/"' not in text
 
 
 def test_public_ui_is_not_empty_and_has_eight_rounds():

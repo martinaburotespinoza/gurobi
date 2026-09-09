@@ -157,7 +157,7 @@ def metadata() -> dict:
         "gurobi_backend": "solver-backed-pwl-for-r1-r4",
         "gurobi_license_required": True,
         "simulation_backend": "common-random-numbers-monte-carlo-coordinate-search",
-        "evaluation_backend": "repeated-120-hour-simulation-with-95ci",
+        "evaluation_backend": "repeated-simulation-with-95ci",
         "ai": {"enabled": True, "provider": "local-evidence-or-ollama", "grounded": True},
         "note": "R5-R8 are operational simulation rounds. Their coefficients are explicit inputs; the engine does not present them as formal game-parity certification until real-game evidence passes the evidence gate.",
     }

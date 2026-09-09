@@ -77,30 +77,36 @@ jobs:
           assert payload.get("service") == "gurobean-engine", payload
           print("CANONICAL_ALIAS_HEALTH: PASS")
           PY
-      - name: Validate canonical UI delivery marker
+      - name: Validate canonical R2 cockpit delivery
         shell: bash
         run: |
           set -euo pipefail
           npx --yes "vercel@$VERCEL_CLI_VERSION" curl "$GUROBEAN_CANONICAL_URL/" > canonical-ui.html
+          npx --yes "vercel@$VERCEL_CLI_VERSION" curl "$GUROBEAN_CANONICAL_URL/api/" > canonical-api-ui.html
           python - <<'PY'
           from pathlib import Path
           html = Path("canonical-ui.html").read_text(encoding="utf-8", errors="replace")
-          required = [
-              "gurobean-readable-ui",
-              "gurobean-premium-visual",
-              "gurobean-visual-patch",
-              "aria-label=\"Gurobean logo\"",
-              "☕",
-              "🧊",
-              "🏆",
-              "Decision Cockpit",
-              ".metric strong{font-size:40px!important}",
-              ".round{min-height:122px!important",
+          api_html = Path("canonical-api-ui.html").read_text(encoding="utf-8", errors="replace")
+          required_wrapper = [
+              "r2-cockpit.html",
+              "ROUND 2 · DISTRIBUCIÓN DE DEMANDA",
+              "Café caliente",
+              "Café frío",
+              "p_hot",
+              "p_cold",
+              "75 / 25",
+              "50 / 50",
+              "25 / 75",
           ]
-          missing = [marker for marker in required if marker not in html]
+          missing = [marker for marker in required_wrapper if marker not in html]
           if missing:
-              raise SystemExit(f"CANONICAL_UI_MARKER_FAILURE: {missing}")
-          print("CANONICAL_UI_DELIVERY: PASS")
+              raise SystemExit(f"CANONICAL_R2_WRAPPER_FAILURE: {missing}")
+          required_api = ["Decision Cockpit", "R1", "R8", "gurobean-readable-ui", "gurobean-premium-visual"]
+          missing_api = [marker for marker in required_api if marker not in api_html]
+          if missing_api:
+              raise SystemExit(f"CANONICAL_API_UI_FAILURE: {missing_api}")
+          print("CANONICAL_R2_COCKPIT: PASS")
+          print("CANONICAL_API_UI: PASS")
           PY
       - name: Upload production validation evidence
         if: always()
@@ -112,5 +118,6 @@ jobs:
             vercel-deploy.log
             canonical-health.json
             canonical-ui.html
+            canonical-api-ui.html
           if-no-files-found: warn
           retention-days: 30

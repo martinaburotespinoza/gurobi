@@ -18,8 +18,8 @@ def test_public_ui_is_rendered_with_current_cockpit_contract():
 
     assert "Decision Cockpit" in html
     assert "R1" in html and "R8" in html
-    assert 'option value="scipy">SciPy · referencia pública' in html
     assert "gurobean-readable-ui" in html
+    assert "Q hot" in html and "Q cold" in html
     assert "/capture" in html
 
 
